@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "phantichtonkho",
+  "main": "backend/src/index.ts",
+  "compatibility_date": "2026-07-16",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": "./frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Bat buoc (bai hoc tu linh-kien-app): thieu dong nay, request dieu huong that toi /api/* bi Static
+    // Assets tra index.html truoc khi toi Worker.
+    "run_worker_first": ["/api/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "phan-tich-ton-kho-db",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Moi gio: keo ton kho / danh muc / danh ba tu linh-kien-app (chi ghi khi phien ban doi).
+  // 1h sang VN (18h UTC): chot tinh cac thang xuat da qua 3 thang.
+  "triggers": { "crons": ["0 * * * *"] },
+  "observability": { "enabled": true },
+
+  // Goi linh-kien-app qua Service Binding (2 Worker cung tai khoan goi nhau qua *.workers.dev bi chan).
+  // Bo comment khi deploy that; local dev dung LINHKIEN_BASE_URL.
+  // "services": [{ "binding": "LINHKIEN_SERVICE", "service": "linhkien", "remote": true }],
+
+  "vars": {
+    "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",
+    "GOOGLE_REDIRECT_URI": "https://phantichtonkho.dichvu3t.workers.dev/api/auth/callback",
+    "FRONTEND_URL": "https://phantichtonkho.dichvu3t.workers.dev",
+    "LINHKIEN_BASE_URL": "https://linhkien.dichvu3t.workers.dev"
+  }
+  // Secrets (wrangler secret put): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET, LINHKIEN_API_KEY
+}

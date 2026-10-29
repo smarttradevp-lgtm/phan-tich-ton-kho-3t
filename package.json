@@ -1,0 +1,20 @@
+{
+  "name": "phan-tich-ton-kho-3t",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev:worker": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "test": "npm run test --workspace backend",
+    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace frontend",
+    "deploy": "npm run build && npm run deploy --workspace backend",
+    "db:migrate:local": "npm run db:migrate:local --workspace backend",
+    "db:migrate:remote": "npm run db:migrate:remote --workspace backend"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "wrangler": "^4.111.0"
+  }
+}
