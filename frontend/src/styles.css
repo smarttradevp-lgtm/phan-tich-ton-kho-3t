@@ -30,6 +30,10 @@
   --chart-critical: #dc2626;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-text);
@@ -38,16 +42,16 @@ body {
 
 @layer components {
   .btn {
-    @apply inline-flex items-center gap-1 rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink hover:bg-subtle disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1 rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink hover:bg-subtle disabled:opacity-50;
   }
   .btn-primary {
-    @apply inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50;
   }
   .input {
     @apply rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm outline-none focus:border-primary;
   }
   .card {
-    @apply rounded-xl border border-line bg-white p-4;
+    @apply min-w-0 rounded-xl border border-line bg-white p-4;
   }
   .tbl {
     @apply w-full border-collapse text-sm;
@@ -63,7 +67,7 @@ body {
     @apply text-right tabular-nums;
   }
   .btn-danger {
-    @apply inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-danger hover:bg-red-50 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-danger hover:bg-red-50 disabled:opacity-50;
   }
   .btn-sm {
     @apply px-2 py-1 text-xs;
@@ -85,6 +89,10 @@ body {
   }
   .chip {
     @apply inline-flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-0.5 text-xs text-ink-soft;
+  }
+  /* Hang bo loc: luoi 2 cot tren mobile, 1 hang tren desktop */
+  .loc-bar {
+    @apply mb-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3;
   }
   .badge {
     @apply inline-block rounded-md px-1.5 py-0.5 text-xs font-semibold;

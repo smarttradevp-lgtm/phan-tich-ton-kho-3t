@@ -12,10 +12,10 @@ export default function NhatKy() {
   if (q.error) return <Loi loi={q.error} />;
   const rows = q.data!.rows.filter((r) => !loai || r.loai === loai);
   const cot: Cot<Dong>[] = [
-    { ten: "Lúc", lay: (r) => r.luc, sx: (r) => r.luc },
-    { ten: "Người", lay: (r) => r.nguoi, sx: (r) => r.nguoi },
-    { ten: "Loại", lay: (r) => <span className={`badge ${r.loai === "import" ? "bg-primary-soft text-primary" : "bg-slate-100 text-slate-700"}`}>{r.loai === "import" ? "Import" : "Thao tác"}</span> },
-    { ten: "Hành động", lay: (r) => <span className="font-medium">{r.hanh_dong}</span>, sx: (r) => r.hanh_dong },
+    { ten: "Lúc", the: "phu" as const, lay: (r) => r.luc, sx: (r) => r.luc },
+    { ten: "Người", the: "phu" as const, lay: (r) => r.nguoi, sx: (r) => r.nguoi },
+    { ten: "Loại", the: "nhan" as const, lay: (r) => <span className={`badge ${r.loai === "import" ? "bg-primary-soft text-primary" : "bg-slate-100 text-slate-700"}`}>{r.loai === "import" ? "Import" : "Thao tác"}</span> },
+    { ten: "Hành động", the: "tieu_de" as const, lay: (r) => <span className="font-medium">{r.hanh_dong}</span>, sx: (r) => r.hanh_dong },
     { ten: "Chi tiết", lay: (r) => <span className="inline-block max-w-[520px] truncate align-bottom text-xs text-ink-soft" title={r.chi_tiet ?? ""}>{r.chi_tiet}</span> },
   ];
   return (

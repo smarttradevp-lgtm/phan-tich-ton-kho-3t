@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
-import { Bang, Chon, ChonGiaTri, duyNhat, Loi, NhanCanhBao, TaiDang, TieuDe, type Cot } from "../components/ui";
+import { Bang, Chon, ChonGiaTri, duyNhat, Loi, NhanCanhBao, TaiDang, TieuDe, useMobile, type Cot } from "../components/ui";
 import { useMoLk } from "../components/ChiTietLk";
 
 interface Dong {
@@ -22,6 +22,7 @@ export default function Leadtime() {
   const [kho, setKho] = useState("");
   const [tanSuat, setTanSuat] = useState("");
   const moLk = useMoLk();
+  const mobile = useMobile();
   const q = useQuery({ queryKey: ["leadtime", loaiKho, gop], queryFn: () => api<Kq>(`/bao-cao/leadtime?loai_kho=${loaiKho}&gop=${gop ? 1 : 0}`) });
   const rows = q.data?.rows ?? [];
   const cs = q.data?.cua_so ?? [7, 14, 30];
@@ -40,26 +41,26 @@ export default function Leadtime() {
   );
 
   const cot: Cot<Dong>[] = [
-    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
-    { ten: "Tên sản phẩm", lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span> },
-    { ten: "Kho", lay: (r) => r.kho, sx: (r) => r.kho },
+    { ten: "Mã", the: "phu" as const, lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
+    { ten: "Tên sản phẩm", the: "tieu_de" as const, lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span> },
+    { ten: "Kho", the: "phu" as const, lay: (r) => r.kho, sx: (r) => r.kho },
     { ten: `TH ${cs[0]} ngày`, lay: (r) => fmtSo(r.tieu_hao[0], 2), so: true, sx: (r) => r.tieu_hao[0] },
-    { ten: `TH ${cs[1]} ngày`, lay: (r) => fmtSo(r.tieu_hao[1], 2), so: true, sx: (r) => r.tieu_hao[1] },
-    { ten: `TH ${cs[2]} ngày`, lay: (r) => fmtSo(r.tieu_hao[2], 2), so: true, sx: (r) => r.tieu_hao[2] },
+    { ten: `TH ${cs[1]} ngày`, the: "an" as const, lay: (r) => fmtSo(r.tieu_hao[1], 2), so: true, sx: (r) => r.tieu_hao[1] },
+    { ten: `TH ${cs[2]} ngày`, the: "an" as const, lay: (r) => fmtSo(r.tieu_hao[2], 2), so: true, sx: (r) => r.tieu_hao[2] },
     { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton },
-    { ten: "Phân loại", lay: (r) => r.phan_loai, sx: (r) => r.phan_loai },
-    { ten: `Cảnh báo ${cs[0]}N`, lay: (r) => <NhanCanhBao v={r.canh_bao[0]} /> },
-    { ten: `Cảnh báo ${cs[1]}N`, lay: (r) => <NhanCanhBao v={r.canh_bao[1]} /> },
-    { ten: `Cảnh báo ${cs[2]}N`, lay: (r) => <NhanCanhBao v={r.canh_bao[2]} /> },
+    { ten: "Phân loại", the: "an" as const, lay: (r) => r.phan_loai, sx: (r) => r.phan_loai },
+    { ten: `Cảnh báo ${cs[0]}N`, the: "nhan" as const, lay: (r) => <NhanCanhBao v={r.canh_bao[0]} /> },
+    { ten: `Cảnh báo ${cs[1]}N`, the: "an" as const, lay: (r) => <NhanCanhBao v={r.canh_bao[1]} /> },
+    { ten: `Cảnh báo ${cs[2]}N`, the: "an" as const, lay: (r) => <NhanCanhBao v={r.canh_bao[2]} /> },
     { ten: "Số ngày dư", lay: (r) => fmtSo(r.so_ngay_du[i], 1), so: true, sx: (r) => r.so_ngay_du[i] },
-    { ten: "TB tiêu hao/ngày", lay: (r) => fmtSo(r.tb_ngay, 2), so: true, sx: (r) => r.tb_ngay },
+    { ten: "TB tiêu hao/ngày", the: "an" as const, lay: (r) => fmtSo(r.tb_ngay, 2), so: true, sx: (r) => r.tb_ngay },
     { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan, 1), so: true, sx: (r) => r.ton_chuan },
-    { ten: "Đang về", lay: (r) => fmtSo(r.hang_dang_ve || null), so: true },
+    { ten: "Đang về", the: "an" as const, lay: (r) => fmtSo(r.hang_dang_ve || null), so: true },
     { ten: "SL thiếu cần đặt", lay: (r) => <span className={r.sl_thieu_can_dat > 0 ? "font-semibold text-danger" : ""}>{fmtSo(r.sl_thieu_can_dat, 1)}</span>, so: true, sx: (r) => r.sl_thieu_can_dat },
     { ten: "Tần suất", lay: (r) => r.tan_suat },
-    { ten: "Hệ số NK", lay: (r) => fmtSo(r.he_so_nk, 2), so: true },
-    { ten: "Leadtime", lay: (r) => fmtSo(r.leadtime), so: true },
-    { ten: "DVBH báo thiếu", lay: (r) => (r.dvbh_so_ca ? `${r.dvbh_so_ca} ca` : ""), so: true },
+    { ten: "Hệ số NK", the: "an" as const, lay: (r) => fmtSo(r.he_so_nk, 2), so: true },
+    { ten: "Leadtime", the: "an" as const, lay: (r) => fmtSo(r.leadtime), so: true },
+    { ten: "DVBH báo thiếu", the: "an" as const, lay: (r) => (r.dvbh_so_ca ? `${r.dvbh_so_ca} ca` : ""), so: true },
   ];
 
   return (
@@ -83,7 +84,7 @@ export default function Leadtime() {
           </button>
         }
       />
-      <div className="mb-3 flex flex-wrap gap-3">
+      <div className="loc-bar">
         <Chon nhan="Loại kho" giaTri={loaiKho} dat={setLoaiKho} luaChon={[{ v: "cong_ty", t: "Kho công ty" }, { v: "ktv", t: "Kho KTV" }, { v: "tat_ca", t: "Tất cả" }]} />
         <Chon nhan="Gộp" giaTri={gop ? "1" : "0"} dat={(v) => setGop(v === "1")} luaChon={[{ v: "0", t: "Theo từng kho" }, { v: "1", t: "Gộp chung" }]} />
       </div>
@@ -93,7 +94,31 @@ export default function Leadtime() {
         <Loi loi={q.error} />
       ) : (
         <>
-          <div className="mb-4 max-h-80 overflow-auto rounded-xl border border-line">
+          {mobile && (
+            <div className="mb-4 space-y-2">
+              <p className="text-xs text-ink-soft">Tổng hợp theo cửa sổ {cs[i]} ngày (đổi ở ô “Cửa sổ” bên dưới). Bấm số để lọc.</p>
+              {tomTat
+                .filter((t) => t.d === cs[i])
+                .map((t) => (
+                  <div key={t.kho} className="card p-3">
+                    <div className="mb-2 truncate text-sm font-semibold">{t.kho}</div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {t.dem.map((n, j) => (
+                        <button
+                          key={j}
+                          className={`rounded-lg px-2 py-1.5 text-left ${j < 2 && n ? "bg-red-50" : "bg-subtle"}`}
+                          onClick={() => (setKho(gop ? "" : t.kho), setMuc(MUC[j]))}
+                        >
+                          <div className={`text-base font-bold tabular-nums ${j < 2 && n ? "text-danger" : ""}`}>{fmtSo(n)}</div>
+                          <div className="truncate text-[10px] leading-tight text-ink-soft">{MUC[j].slice(3)}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+          <div className="mb-4 hidden max-h-80 overflow-auto rounded-xl border border-line md:block">
             <table className="tbl">
               <thead>
                 <tr>
@@ -121,7 +146,7 @@ export default function Leadtime() {
               </tbody>
             </table>
           </div>
-          <div className="mb-3 flex flex-wrap gap-3">
+          <div className="loc-bar">
             <ChonGiaTri nhan="Kho" giaTri={kho} dat={setKho} ds={duyNhat(rows.map((r) => r.kho))} />
             <Chon nhan="Cửa sổ" giaTri={cuaSo} dat={setCuaSo} luaChon={cs.map((d, j) => ({ v: String(j) as "0" | "1" | "2", t: `${d} ngày` }))} />
             <ChonGiaTri nhan="Mức cảnh báo" giaTri={muc} dat={setMuc} ds={MUC} />

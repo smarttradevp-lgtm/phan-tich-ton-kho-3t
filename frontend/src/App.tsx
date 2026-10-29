@@ -108,7 +108,7 @@ export default function App() {
   const coTheGhi = u.vai_tro !== "xem";
 
   const sidebar = (
-    <aside className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-line bg-white transition-transform md:static md:translate-x-0 ${moMenu ? "translate-x-0" : "-translate-x-full"}`}>
+    <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] md:w-60 flex-col border-r border-line bg-white transition-transform md:static md:translate-x-0 ${moMenu ? "translate-x-0" : "-translate-x-full"}`}>
       <a href="#/tong-quan" className="flex h-16 items-center gap-2.5 border-b border-line px-4">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
           <Icon ten="lop" cls="h-4 w-4" />
@@ -154,10 +154,10 @@ export default function App() {
     <ChiTietLkProvider>
       <div className="flex min-h-screen bg-subtle/40">
         {sidebar}
-        {moMenu && <div className="fixed inset-0 z-30 bg-slate-900/30 md:hidden" onClick={() => setMoMenu(false)} />}
+        {moMenu && <div className="fixed inset-0 z-40 bg-slate-900/30 md:hidden" onClick={() => setMoMenu(false)} />}
         <div className="flex min-w-0 flex-1 flex-col">
           <ThanhTren moMenu={() => setMoMenu(true)} tieuDe={tatCa.find((t) => t.k === hienTai)?.t ?? ""} />
-          <main className="min-w-0 flex-1 p-4 md:p-6">
+          <main className="min-w-0 flex-1 px-3 pb-24 pt-4 md:p-6">
             <Suspense fallback={<TaiDang />}>
               {hienTai === "tong-quan" && <TongQuan />}
               {hienTai === "dap-chieu" && <DapChieu />}
@@ -172,25 +172,63 @@ export default function App() {
             </Suspense>
           </main>
         </div>
+        <ThanhDuoi hienTai={hienTai} moMenu={() => setMoMenu(true)} />
       </div>
     </ChiTietLkProvider>
   );
 }
 
 // Thanh tren: nut menu (mobile) + moc du lieu dang dung cho moi bao cao.
+// "2026-10-29 08:00:00" -> "29/10 08:00" tren mobile, day du tren desktop.
+function TgGon({ luc }: { luc: string }) {
+  return (
+    <>
+      <span className="sm:hidden">{`${luc.slice(8, 10)}/${luc.slice(5, 7)} ${luc.slice(11, 16)}`}</span>
+      <span className="hidden sm:inline">{luc.slice(0, 16)}</span>
+    </>
+  );
+}
+
+// Thanh dieu huong duoi day (chi mobile): 4 bao cao chinh + "Thêm" mo menu day du.
+const DUOI: { k: string; t: string; icon: IconTen }[] = [
+  { k: "tong-quan", t: "Tổng quan", icon: "tong-quan" },
+  { k: "dap-chieu", t: "Đắp chiếu", icon: "dap-chieu" },
+  { k: "t5", t: "T5", icon: "canh-bao" },
+  { k: "leadtime", t: "Leadtime", icon: "dong-ho" },
+];
+
+function ThanhDuoi({ hienTai, moMenu }: { hienTai: string; moMenu: () => void }) {
+  const trongDuoi = DUOI.some((d) => d.k === hienTai);
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      {DUOI.map((d) => (
+        <a key={d.k} href={`#/${d.k}`} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${hienTai === d.k ? "font-semibold text-primary" : "text-ink-soft"}`}>
+          <Icon ten={d.icon} cls="h-5 w-5" />
+          {d.t}
+        </a>
+      ))}
+      <button className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${trongDuoi ? "text-ink-soft" : "font-semibold text-primary"}`} onClick={moMenu}>
+        <Icon ten="menu" cls="h-5 w-5" />
+        Thêm
+      </button>
+    </nav>
+  );
+}
+
 function ThanhTren({ moMenu, tieuDe }: { moMenu: () => void; tieuDe: string }) {
   const moc = useQuery({ queryKey: ["moc"], queryFn: () => api<Moc>("/bao-cao/moc-du-lieu") });
   const m = moc.data;
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-white/95 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line bg-white/95 px-3 backdrop-blur md:h-16 md:gap-3 md:px-6">
       <button className="btn btn-sm md:hidden" onClick={moMenu} aria-label="Mở menu">
         <Icon ten="menu" />
       </button>
-      <span className="text-sm font-semibold md:hidden">{tieuDe}</span>
-      <div className="ml-auto flex flex-wrap items-center justify-end gap-2 text-xs">
+      <span className="min-w-0 truncate text-sm font-semibold md:hidden">{tieuDe}</span>
+      <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2 text-xs">
         <span className="chip" title="Phiên tồn kho dùng cho mọi báo cáo">
           <span className={`h-1.5 w-1.5 rounded-full ${m?.ton_kho ? "bg-success" : "bg-warning"}`} />
-          Tồn kho: {m?.ton_kho?.xong_luc?.slice(0, 16) ?? "chưa có"}
+          <span className="hidden sm:inline">Tồn kho:</span>
+          <span className="sm:hidden">Tồn</span> {m?.ton_kho?.xong_luc ? <TgGon luc={m.ton_kho.xong_luc} /> : "chưa có"}
         </span>
         <span className="chip hidden sm:inline-flex" title="Ngày phát sinh mới nhất trong sổ chi tiết vật tư">
           <span className={`h-1.5 w-1.5 rounded-full ${m?.so_chi_tiet.den ? "bg-success" : "bg-warning"}`} />

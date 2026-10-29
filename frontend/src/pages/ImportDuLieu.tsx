@@ -198,10 +198,10 @@ export default function ImportDuLieu({ laAdmin }: { laAdmin: boolean }) {
     });
 
   const lichSuCot: Cot<Record<string, string | number | null>>[] = [
-    { ten: "Lúc", lay: (r) => r.luc, sx: (r) => r.luc },
-    { ten: "Loại", lay: (r) => <span className="badge bg-primary-soft text-primary">{LOAI_LOG[String(r.loai)] ?? r.loai}</span>, sx: (r) => r.loai },
-    { ten: "File", lay: (r) => <span className="inline-block max-w-[260px] truncate align-bottom" title={String(r.ten_file ?? "")}>{r.ten_file}</span> },
-    { ten: "Người", lay: (r) => r.nguoi },
+    { ten: "Lúc", the: "phu" as const, lay: (r) => r.luc, sx: (r) => r.luc },
+    { ten: "Loại", the: "nhan" as const, lay: (r) => <span className="badge bg-primary-soft text-primary">{LOAI_LOG[String(r.loai)] ?? r.loai}</span>, sx: (r) => r.loai },
+    { ten: "File", the: "tieu_de" as const, lay: (r) => <span className="inline-block max-w-[260px] truncate align-bottom" title={String(r.ten_file ?? "")}>{r.ten_file}</span> },
+    { ten: "Người", the: "phu" as const, lay: (r) => r.nguoi },
     { ten: "Số dòng", lay: (r) => fmtSo(Number(r.so_dong)), so: true, sx: (r) => Number(r.so_dong) },
     { ten: "Khoảng dữ liệu", lay: (r) => (r.tu_ngay ? `${r.tu_ngay} → ${r.den_ngay}` : "") },
     { ten: "Ghi chú", lay: (r) => <span className="text-ink-soft">{r.ghi_chu}</span> },
@@ -288,7 +288,7 @@ export default function ImportDuLieu({ laAdmin }: { laAdmin: boolean }) {
           <div className="max-h-80 space-y-2 overflow-auto">
             {choKho.chuaKhop.map((t) => (
               <div key={t} className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="w-72 truncate font-medium" title={t}>
+                <span className="w-full truncate font-medium sm:w-72" title={t}>
                   {t}
                 </span>
                 <select className="input" value={chonKho[t] ?? ""} onChange={(e) => setChonKho((c) => ({ ...c, [t]: e.target.value }))}>

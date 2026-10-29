@@ -51,7 +51,7 @@ export default function TongQuan() {
   const tongSl = d.xep_loai.reduce((a, x) => a + x.ton, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 md:space-y-5">
       <TieuDe
         ten="Tổng quan tồn kho 3T"
         moTa={
@@ -66,7 +66,7 @@ export default function TongQuan() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-4">
         {coGia ? (
           <O nhan="Giá trị tồn kho" so={soGon(d.tong.gia_tri_ton)} icon="tien" phu={`${fmtSo(d.tong.so_ma_co_ton)} mã có tồn · giá nhập (chưa có → dự phòng)`} onClick={() => moTrang("dap-chieu")} />
         ) : (
@@ -93,8 +93,8 @@ export default function TongQuan() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="card xl:col-span-2">
+      <div className="grid gap-3 md:gap-4 xl:grid-cols-3">
+        <div className="card p-3 md:p-4 xl:col-span-2">
           <div className="mb-1 flex items-baseline justify-between">
             <h2 className="card-title">Xuất kho 12 tháng — kho công ty</h2>
             <span className="text-xs text-ink-soft">Số lượng, tháng gần nhất lũy kế</span>
@@ -120,7 +120,7 @@ export default function TongQuan() {
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
         <div className="card">
           <h2 className="card-title mb-3">Tồn theo thời gian không xuất (đắp chiếu)</h2>
           <BieuDoThanh data={d.dap_chieu.map((x) => ({ nhan: x.nhom, gia_tri: coGia ? x.gia_tri_ton : x.so_ma, phu: coGia ? `${fmtSo(x.so_ma)} mã có tồn` : undefined }))} dinhDang={coGia ? soGon : undefined} />
@@ -153,7 +153,25 @@ export default function TongQuan() {
             Xem tất cả →
           </a>
         </div>
-        <div className="overflow-auto">
+        <ul className="divide-y divide-line md:hidden">
+          {d.t5_top.map((r) => (
+            <li key={`${r.nhom}-${r.ma}`}>
+              <button className="flex w-full items-center gap-3 py-2 text-left" onClick={() => moLk(r.ma)}>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{r.ten}</div>
+                  <div className="truncate text-xs text-ink-soft">
+                    <span className="font-mono text-primary">{r.ma}</span> · tồn {fmtSo(r.ton, 2)} / dự trữ {fmtSo(r.du_tru)}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-sm font-semibold tabular-nums text-danger">−{fmtSo(-r.ton_du, 2)}</div>
+                  <div className="text-[11px] text-ink-soft">thiếu</div>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-auto md:block">
           <table className="tbl">
             <thead>
               <tr>

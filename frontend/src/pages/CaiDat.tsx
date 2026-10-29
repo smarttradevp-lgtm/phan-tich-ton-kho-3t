@@ -104,9 +104,9 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
     onSuccess: () => (setHangLoat(null), setChon(new Set()), qc.invalidateQueries()),
   });
   const cot: Cot<LkRow>[] = [
-    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs", sx: (r) => r.ma },
+    { ten: "Mã", the: "phu" as const, lay: (r) => r.ma, cls: "font-mono text-xs", sx: (r) => r.ma },
     {
-      ten: "Tên",
+      ten: "Tên", the: "tieu_de" as const,
       lay: (r) => (
         <span title={r.ten ?? ""} className="inline-block max-w-[260px] truncate align-bottom">
           {r.ten}
@@ -117,6 +117,7 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
     },
     ...TRUONG_LK.filter((f) => f.k !== "gia_nhap").map((f) => ({
       ten: f.t,
+      the: (["doi_tac", "nhom_tuong_duong", "noi_san_xuat"].includes(f.k) ? "an" : undefined) as Cot<LkRow>["the"],
       so: f.so,
       sx: (r: LkRow) => r[f.k] as string | number | null,
       lay: (r: LkRow) => (f.so ? fmtSo(r[f.k] as number | null, 2) : (r[f.k] as string | null) ?? <span className="text-ink-soft">—</span>),
@@ -136,7 +137,7 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
           <span className="text-ink-soft">—</span>
         ),
     },
-    { ten: "Cập nhật", lay: (r) => <span className="text-xs text-ink-soft">{r.ngay_cap_nhat?.slice(0, 16)}</span>, sx: (r) => r.ngay_cap_nhat },
+    { ten: "Cập nhật", the: "an" as const, lay: (r) => <span className="text-xs text-ink-soft">{r.ngay_cap_nhat?.slice(0, 16)}</span>, sx: (r) => r.ngay_cap_nhat },
     {
       ten: "",
       lay: (r) => (
@@ -177,10 +178,10 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
           </button>
         ))}
       </div>
-      <div className="mb-3 flex flex-wrap gap-3">
+      <div className="loc-bar">
         <ChonGiaTri nhan="Phân loại" giaTri={phanLoai} dat={setPhanLoai} ds={duyNhat(rows.map((r) => r.phan_loai))} />
         <ChonGiaTri nhan="Ngành" giaTri={nganh} dat={setNganh} ds={duyNhat(rows.map((r) => r.nganh))} />
-        <button className="btn ml-auto" onClick={xuatExcel}>
+        <button className="btn col-span-2 justify-center sm:col-span-1 sm:ml-auto" onClick={xuatExcel}>
           <Icon ten="tai-xuong" /> Tải Excel ({hien.length.toLocaleString("vi-VN")})
         </button>
       </div>
@@ -340,14 +341,14 @@ function PhanLoai({ coTheGhi }: { coTheGhi: boolean }) {
           <div className="space-y-1.5">
             {la.map((l) => (
               <div key={l.ten} className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="w-80 truncate font-medium" title={l.ten}>
+                <span className="w-full truncate font-medium sm:w-80" title={l.ten}>
                   “{l.ten}”
                 </span>
                 <span className="chip">{l.so_lk} LK</span>
                 {coTheGhi && (
                   <>
                     <span className="text-ink-soft">gộp vào</span>
-                    <select className="input" value={gopVao[l.ten] ?? ""} onChange={(e) => setGopVao({ ...gopVao, [l.ten]: e.target.value })}>
+                    <select className="input min-w-0 flex-1 sm:flex-none" value={gopVao[l.ten] ?? ""} onChange={(e) => setGopVao({ ...gopVao, [l.ten]: e.target.value })}>
                       <option value="">— chọn —</option>
                       {ds.map((p) => (
                         <option key={p.ten}>{p.ten}</option>
@@ -364,7 +365,44 @@ function PhanLoai({ coTheGhi }: { coTheGhi: boolean }) {
           {gop.data && <p className="mt-2 text-xs text-success">Đã gộp {gop.data.so_lk} LK.</p>}
         </div>
       )}
-      <div className="overflow-auto rounded-xl border border-line bg-white">
+      <div className="space-y-2 md:hidden">
+        {ds.map((p, i) => {
+          const dat = (x: Partial<(typeof ds)[number]>) => setDs(ds.map((y, j) => (j === i ? { ...y, ...x } : y)));
+          return (
+            <div key={i} className="card space-y-2 p-3">
+              <div className="flex items-center gap-2">
+                <input className="input min-w-0 flex-1 font-medium" disabled={!coTheGhi} value={p.ten} onChange={(e) => dat({ ten: e.target.value })} />
+                {coTheGhi && (
+                  <button className="btn btn-sm" onClick={() => (!p.so_lk || confirm(`${p.so_lk} LK đang dùng “${p.ten}”. Vẫn xoá khỏi danh sách?`)) && setDs(ds.filter((_, j) => j !== i))} aria-label="Xoá">
+                    ✕
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-ink-soft">
+                <span>{fmtSo(p.so_lk)} LK</span>
+                <label className="flex items-center gap-1.5">
+                  Hệ số thu hồi
+                  <input className="input w-20 text-right" type="number" step="0.5" disabled={!coTheGhi} value={p.he_so_thu_hoi} onChange={(e) => dat({ he_so_thu_hoi: Number(e.target.value) })} />
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {NHOM.map((n) => (
+                  <label key={n} className="text-xs text-ink-soft">
+                    {n} · {MO_TA_NHOM[n]}
+                    <select className="input mt-0.5 w-full text-xs" disabled={!coTheGhi} value={p.danh_gia[n] ?? ""} onChange={(e) => dat({ danh_gia: { ...p.danh_gia, [n]: e.target.value } })}>
+                      <option value="">—</option>
+                      {[...new Set([...DANH_GIA, p.danh_gia[n]].filter(Boolean))].map((d) => (
+                        <option key={d}>{d}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-auto rounded-xl border border-line bg-white md:block">
         <table className="tbl">
           <thead>
             <tr>
@@ -463,8 +501,8 @@ function Kho({ coTheGhi }: { coTheGhi: boolean }) {
     qc.invalidateQueries();
   };
   const cot: Cot<KhoRow>[] = [
-    { ten: "Mã kho", lay: (r) => r.ma, cls: "font-mono text-xs", sx: (r) => r.ma },
-    { ten: "Tên", lay: (r) => r.ten, sx: (r) => r.ten },
+    { ten: "Mã kho", the: "phu" as const, lay: (r) => r.ma, cls: "font-mono text-xs", sx: (r) => r.ma },
+    { ten: "Tên", the: "tieu_de" as const, lay: (r) => r.ten, sx: (r) => r.ten },
     {
       ten: "Loại",
       sx: (r) => r.loai,
@@ -493,14 +531,14 @@ function Kho({ coTheGhi }: { coTheGhi: boolean }) {
     },
     { ten: "Phòng ban", lay: (r) => (r.loai !== "ktv" ? "" : <ODieuChinh coTheGhi={coTheGhi} giaTri={r.phong_ban_tay} dongBo={r.phong_ban} luu={(v) => luu.mutate({ ma: r.ma, phong_ban_tay: v })} />) },
     { ten: "Khu vực", lay: (r) => (r.loai !== "ktv" ? "" : <ODieuChinh coTheGhi={coTheGhi} giaTri={r.khu_vuc_tay} dongBo={r.khu_vuc} luu={(v) => luu.mutate({ ma: r.ma, khu_vuc_tay: v })} />) },
-    { ten: "Tên khác (khớp file)", lay: (r) => <span className="text-xs text-ink-soft">{r.ten_khac.join("; ")}</span> },
-    { ten: "Nguồn", lay: (r) => <span className="text-xs text-ink-soft">{NGUON_KHO[r.nguon] ?? r.nguon}</span>, sx: (r) => r.nguon },
+    { ten: "Tên khác (khớp file)", the: "an" as const, lay: (r) => <span className="text-xs text-ink-soft">{r.ten_khac.join("; ")}</span> },
+    { ten: "Nguồn", the: "phu" as const, lay: (r) => <span className="text-xs text-ink-soft">{NGUON_KHO[r.nguon] ?? r.nguon}</span>, sx: (r) => r.nguon },
   ];
   if (q.isLoading) return <TaiDang />;
   const moi = tatCa.filter((r) => r.loai === "khac" && r.nguon === "import").length;
   return (
     <div>
-      <div className="mb-3 grid gap-2 text-xs sm:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-2 text-xs lg:grid-cols-4">
         {[
           ["Kho công ty / Khác", "Tính riêng từng kho trong Đắp chiếu, Leadtime."],
           ["Kho KTV", "Gộp thành “Kho KTV chung”; dùng cho báo cáo Thu hồi. Xuất của kho KTV không tính vào đắp chiếu."],
@@ -522,9 +560,9 @@ function Kho({ coTheGhi }: { coTheGhi: boolean }) {
           </ThongBao>
         </div>
       )}
-      <div className="mb-3 flex flex-wrap items-center gap-3">
+      <div className="loc-bar">
         <Chon nhan="Loại" giaTri={loai} dat={setLoai} luaChon={[{ v: "", t: `Tất cả (${tatCa.length})` }, ...LOAI_KHO.map((l) => ({ ...l, t: `${l.t} (${tatCa.filter((r) => r.loai === l.v).length})` })), { v: "moi", t: `Mới từ file, chưa phân loại (${moi})` }]} />
-        <button className="btn ml-auto" onClick={() => taiExcel("danh-sach-kho.xlsx", ["Mã kho", "Tên", "Loại", "Làm việc", "Phòng ban", "Khu vực", "Tên khác", "Nguồn"], rows.map((r) => [r.ma, r.ten, LOAI_KHO.find((l) => l.v === r.loai)?.t ?? r.loai, (r.lam_viec_tay ?? r.lam_viec) == null ? null : (r.lam_viec_tay ?? r.lam_viec) ? "Làm" : "Nghỉ", r.phong_ban_tay ?? r.phong_ban, r.khu_vuc_tay ?? r.khu_vuc, r.ten_khac.join("; "), NGUON_KHO[r.nguon] ?? r.nguon]))}>
+        <button className="btn col-span-2 justify-center sm:col-span-1 sm:ml-auto" onClick={() => taiExcel("danh-sach-kho.xlsx", ["Mã kho", "Tên", "Loại", "Làm việc", "Phòng ban", "Khu vực", "Tên khác", "Nguồn"], rows.map((r) => [r.ma, r.ten, LOAI_KHO.find((l) => l.v === r.loai)?.t ?? r.loai, (r.lam_viec_tay ?? r.lam_viec) == null ? null : (r.lam_viec_tay ?? r.lam_viec) ? "Làm" : "Nghỉ", r.phong_ban_tay ?? r.phong_ban, r.khu_vuc_tay ?? r.khu_vuc, r.ten_khac.join("; "), NGUON_KHO[r.nguon] ?? r.nguon]))}>
           <Icon ten="tai-xuong" /> Tải Excel
         </button>
       </div>

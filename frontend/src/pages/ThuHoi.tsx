@@ -41,18 +41,18 @@ export default function ThuHoi() {
   const khoChuaKb = duyNhat(rows.filter((r) => r.kho_chua_khai_bao).map((r) => r.kho));
 
   const cot: Cot<Dong>[] = [
-    { ten: "Kho KTV", lay: (r) => r.kho, sx: (r) => r.kho },
-    { ten: "Phòng ban", lay: (r) => r.phong_ban },
-    { ten: "Khu vực", lay: (r) => r.khu_vuc, sx: (r) => r.khu_vuc },
+    { ten: "Kho KTV", the: "phu" as const, lay: (r) => r.kho, sx: (r) => r.kho },
+    { ten: "Phòng ban", the: "an" as const, lay: (r) => r.phong_ban },
+    { ten: "Khu vực", the: "phu" as const, lay: (r) => r.khu_vuc, sx: (r) => r.khu_vuc },
     { ten: "Làm việc", lay: (r) => (r.lam_viec ? "Làm" : <span className="text-danger">Nghỉ</span>) },
-    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
-    { ten: "Tên hàng", lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span> },
+    { ten: "Mã", the: "phu" as const, lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
+    { ten: "Tên hàng", the: "tieu_de" as const, lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span> },
     { ten: "Xuất trong kỳ", lay: (r) => fmtSo(r.xuat ?? 0, 2), so: true, sx: (r) => r.xuat ?? 0 },
     { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton },
-    { ten: "Phân loại", lay: (r) => r.phan_loai },
-    { ten: "Hệ số", lay: (r) => fmtSo(r.he_so, 2), so: true },
+    { ten: "Phân loại", the: "an" as const, lay: (r) => r.phan_loai },
+    { ten: "Hệ số", the: "an" as const, lay: (r) => fmtSo(r.he_so, 2), so: true },
     { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan), so: true, sx: (r) => r.ton_chuan },
-    { ten: "Nhóm", lay: (r) => r.nhom, sx: (r) => r.nhom },
+    { ten: "Nhóm", the: "nhan" as const, lay: (r) => r.nhom, sx: (r) => r.nhom },
     { ten: "Đánh giá", lay: (r) => r.danh_gia },
   ];
 
@@ -83,14 +83,14 @@ export default function ThuHoi() {
           </button>
         }
       />
-      <div className="mb-3 grid gap-2 md:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {DINH_NGHIA.map(([n, d, h]) => (
           <div key={n} className="card py-2 text-xs">
             <b>{n}</b>: {d} → <i>{h}</i>
           </div>
         ))}
       </div>
-      <div className="mb-3 flex flex-wrap gap-3">
+      <div className="loc-bar">
         <ChonGiaTri nhan="Bộ phận" giaTri={pb} dat={setPb} ds={duyNhat(rows.map((r) => r.phong_ban))} />
         <ChonGiaTri nhan="Khu vực" giaTri={kv} dat={setKv} ds={duyNhat(rows.filter((r) => !pb || r.phong_ban === pb).map((r) => r.khu_vuc))} />
       </div>

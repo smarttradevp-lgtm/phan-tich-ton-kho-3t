@@ -43,21 +43,21 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
   const coGia = rows.some((r) => (r.gia_tri_ton ?? 0) > 0);
 
   const cot: Cot<DapChieuDong>[] = [
-    { ten: "Kho", lay: (r) => r.nhom, sx: (r) => r.nhom },
-    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
-    { ten: "Tên sản phẩm", lay: (r) => <span title={r.ten} className="inline-block max-w-[260px] truncate align-bottom">{r.ten}</span> },
-    { ten: "Rủi ro", lay: (r) => <NhanXepLoai v={r.xep_loai} />, sx: (r) => r.xep_loai },
-    { ten: "Đắp chiếu", lay: (r) => r.phan_loai_dap_chieu, sx: (r) => r.phan_loai_dap_chieu },
-    { ten: "Nơi SX", lay: (r) => r.noi_san_xuat },
+    { ten: "Kho", the: "phu" as const, lay: (r) => r.nhom, sx: (r) => r.nhom },
+    { ten: "Mã", the: "phu" as const, lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
+    { ten: "Tên sản phẩm", the: "tieu_de" as const, lay: (r) => <span title={r.ten} className="inline-block max-w-[260px] truncate align-bottom">{r.ten}</span> },
+    { ten: "Rủi ro", the: "nhan" as const, lay: (r) => <NhanXepLoai v={r.xep_loai} />, sx: (r) => r.xep_loai },
+    { ten: "Đắp chiếu", the: "nhan" as const, lay: (r) => r.phan_loai_dap_chieu, sx: (r) => r.phan_loai_dap_chieu },
+    { ten: "Nơi SX", the: "an" as const, lay: (r) => r.noi_san_xuat },
     { ten: "Phân loại", lay: (r) => r.phan_loai, sx: (r) => r.phan_loai },
-    { ten: "Hệ số", lay: (r) => fmtSo(r.he_so, 2), so: true, sx: (r) => r.he_so },
+    { ten: "Hệ số", the: "an" as const, lay: (r) => fmtSo(r.he_so, 2), so: true, sx: (r) => r.he_so },
     { ten: "Tồn hiện tại", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton },
     { ten: "TB 3 tháng", lay: (r) => fmtSo(r.tb3), so: true, sx: (r) => r.tb3 },
-    { ten: "TB 6 tháng", lay: (r) => fmtSo(r.tb6), so: true, sx: (r) => r.tb6 },
+    { ten: "TB 6 tháng", the: "an" as const, lay: (r) => fmtSo(r.tb6), so: true, sx: (r) => r.tb6 },
     { ten: "SL dự trữ", lay: (r) => fmtSo(r.du_tru), so: true, sx: (r) => r.du_tru },
     { ten: "Tồn dư", lay: (r) => <span className={r.ton_du < 0 ? "font-semibold text-danger" : ""}>{fmtSo(r.ton_du, 2)}</span>, so: true, sx: (r) => r.ton_du },
     {
-      ten: "Giá nhập",
+      ten: "Giá nhập", the: "an" as const,
       lay: (r) =>
         r.gia_nhap_nguon === "nhap" ? fmtSo(r.gia_nhap) : (
           <span title={r.gia_nhap_nguon === "du_phong" ? "Tạm dùng giá dự phòng — chưa có giá nhập" : "Chưa có giá nhập lẫn giá dự phòng — tính = 0"} className="italic text-warning">
@@ -68,9 +68,9 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
       sx: (r) => r.gia_nhap,
     },
     { ten: "GT tồn", lay: (r) => fmtSo(r.gia_tri_ton), so: true, sx: (r) => r.gia_tri_ton },
-    { ten: "GT dự trữ", lay: (r) => fmtSo(r.gia_tri_du_tru), so: true, sx: (r) => r.gia_tri_du_tru },
-    { ten: "GT tồn dư", lay: (r) => fmtSo(r.gia_tri_ton_du), so: true, sx: (r) => r.gia_tri_ton_du },
-    ...thang.map((t, i) => ({ ten: `${i === 0 ? "N " : `N-${i} `}(${fmtThang(t)})`, lay: (r: DapChieuDong) => fmtSo(r.xuat[i] || null, 2), so: true, sx: (r: DapChieuDong) => r.xuat[i] })),
+    { ten: "GT dự trữ", the: "an" as const, lay: (r) => fmtSo(r.gia_tri_du_tru), so: true, sx: (r) => r.gia_tri_du_tru },
+    { ten: "GT tồn dư", the: "an" as const, lay: (r) => fmtSo(r.gia_tri_ton_du), so: true, sx: (r) => r.gia_tri_ton_du },
+    ...thang.map((t, i) => ({ ten: `${i === 0 ? "N " : `N-${i} `}(${fmtThang(t)})`, the: "an" as const, lay: (r: DapChieuDong) => fmtSo(r.xuat[i] || null, 2), so: true, sx: (r: DapChieuDong) => r.xuat[i] })),
   ];
 
   const xuatExcel = () =>
@@ -110,7 +110,7 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
           })}
         </div>
       )}
-      <div className="mb-3 flex flex-wrap gap-3">
+      <div className="loc-bar">
         <Chon nhan="Chọn kho" giaTri={cheDo} dat={(v) => (setCheDo(v), setNhom(""))} luaChon={CHE_DO} />
         <ChonGiaTri nhan="Kho" giaTri={nhom} dat={setNhom} ds={duyNhat(rows.map((r) => r.nhom))} />
         <ChonGiaTri nhan="Đắp chiếu" giaTri={dc} dat={setDc} ds={duyNhat(rows.map((r) => r.phan_loai_dap_chieu))} />
@@ -127,6 +127,22 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
           cot={cot}
           timTheo={(r) => `${r.ma} ${r.ten}`}
           onClick={(r) => moLk(r.ma)}
+          tongThe={
+            <div className="card grid grid-cols-3 gap-2 bg-primary-soft/60 p-3 text-xs">
+              <div>
+                <div className="text-ink-soft">Tồn</div>
+                <div className="font-semibold tabular-nums">{fmtSo(tong.ton, 0)}</div>
+              </div>
+              <div>
+                <div className="text-ink-soft">SL dự trữ</div>
+                <div className="font-semibold tabular-nums">{fmtSo(tong.du_tru)}</div>
+              </div>
+              <div>
+                <div className="text-ink-soft">Tồn dư</div>
+                <div className="font-semibold tabular-nums">{fmtSo(tong.ton_du, 0)}</div>
+              </div>
+            </div>
+          }
           dongTong={
             <tr className="bg-primary-soft font-semibold">
               <td colSpan={8}>TỔNG ({loc.length.toLocaleString("vi-VN")} dòng)</td>

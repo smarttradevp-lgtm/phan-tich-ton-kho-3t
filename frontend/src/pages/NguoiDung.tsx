@@ -31,7 +31,7 @@ export default function NguoiDung({ toi }: { toi: string }) {
   const cho = rows.filter((u) => u.trang_thai === "cho_duyet");
   const cot: Cot<U>[] = [
     {
-      ten: "Tài khoản",
+      ten: "Tài khoản", the: "tieu_de" as const,
       sx: (u) => u.email,
       lay: (u) => (
         <div className="flex items-center gap-2">
@@ -56,8 +56,8 @@ export default function NguoiDung({ toi }: { toi: string }) {
         </select>
       ),
     },
-    { ten: "Trạng thái", sx: (u) => u.trang_thai, lay: (u) => <span className={`badge ${TRANG_THAI[u.trang_thai]?.c}`}>{TRANG_THAI[u.trang_thai]?.t ?? u.trang_thai}</span> },
-    { ten: "Tạo lúc", lay: (u) => <span className="text-xs text-ink-soft">{u.created_at}</span>, sx: (u) => u.created_at },
+    { ten: "Trạng thái", the: "nhan" as const, sx: (u) => u.trang_thai, lay: (u) => <span className={`badge ${TRANG_THAI[u.trang_thai]?.c}`}>{TRANG_THAI[u.trang_thai]?.t ?? u.trang_thai}</span> },
+    { ten: "Tạo lúc", the: "an" as const, lay: (u) => <span className="text-xs text-ink-soft">{u.created_at}</span>, sx: (u) => u.created_at },
     {
       ten: "",
       lay: (u) =>

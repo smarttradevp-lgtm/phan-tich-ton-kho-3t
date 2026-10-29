@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 // Bieu do tu dung bang SVG/HTML (1 chuoi -> 1 mau primary; luoi mo; tooltip khi re chuot; vung bam = ca cot).
 // Mau trang thai (do) chi dung khi gia tri MANG nghia nguy co (vd T5), luon kem nhan chu.
@@ -25,10 +25,25 @@ function moc(max: number): number[] {
   return ds;
 }
 
+// Do rong thuc cua khung (SVG ve theo px that -> chu khong bi thu nho tren dien thoai).
+function useRong<T extends HTMLElement>(macDinh: number) {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(macDinh);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(240, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
+
 // Cot doc theo thoi gian. Nhan truc X thua dan khi nhieu cot; nhan gia tri chi o cot cuoi + cot cao nhat.
 export function BieuDoCot({ data, cao = 220, donVi = "" }: { data: { nhan: string; gia_tri: number; chu_thich?: ReactNode }[]; cao?: number; donVi?: string }) {
   const [hover, setHover] = useState<number | null>(null);
-  const W = 640, PL = 44, PR = 8, PT = 18, PB = 26;
+  const [ref, W] = useRong<HTMLDivElement>(640);
+  const PL = 40, PR = 6, PT = 18, PB = 26;
   const max = Math.max(0, ...data.map((d) => d.gia_tri));
   const ticks = moc(max);
   const top = ticks[ticks.length - 1] || 1;
@@ -37,10 +52,10 @@ export function BieuDoCot({ data, cao = 220, donVi = "" }: { data: { nhan: strin
   const bw = Math.min(36, band * 0.62);
   const y = (v: number) => PT + (cao - PT - PB) * (1 - v / top);
   const iMax = data.reduce((m, d, i) => (d.gia_tri > (data[m]?.gia_tri ?? -1) ? i : m), 0);
-  const nhanMoi = Math.ceil(n / 8);
+  const nhanMoi = Math.ceil(n / Math.max(3, Math.floor((W - PL) / 56)));
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${W} ${cao}`} className="w-full" role="img" onMouseLeave={() => setHover(null)}>
+    <div className="relative" ref={ref}>
+      <svg viewBox={`0 0 ${W} ${cao}`} width={W} height={cao} className="block w-full" role="img" onMouseLeave={() => setHover(null)}>
         {ticks.map((t) => (
           <g key={t}>
             <line x1={PL} x2={W - PR} y1={y(t)} y2={y(t)} stroke="var(--chart-grid)" strokeWidth={1} />
@@ -55,7 +70,7 @@ export function BieuDoCot({ data, cao = 220, donVi = "" }: { data: { nhan: strin
           const r = Math.min(4, h / 2, bw / 2);
           const yb = cao - PB;
           return (
-            <g key={d.nhan} onMouseEnter={() => setHover(i)}>
+            <g key={d.nhan} onMouseEnter={() => setHover(i)} onClick={() => setHover(hover === i ? null : i)}>
               <rect x={PL + band * i} y={PT} width={band} height={cao - PT - PB} fill="transparent" />
               {h > 0 && (
                 <path
@@ -81,7 +96,7 @@ export function BieuDoCot({ data, cao = 220, donVi = "" }: { data: { nhan: strin
       {hover != null && data[hover] && (
         <div
           className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs shadow-md"
-          style={{ left: `${((PL + band * hover + band / 2) / W) * 100}%`, top: 0 }}
+          style={{ left: `${Math.min(88, Math.max(12, ((PL + band * hover + band / 2) / W) * 100))}%`, top: 0 }}
         >
           <div className="font-semibold">{data[hover].nhan}</div>
           <div className="tabular-nums">

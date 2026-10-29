@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, fmtSo, fmtThang } from "../lib/api";
 import { BieuDoCot } from "./bieuDo";
@@ -22,6 +22,11 @@ export function ChiTietLkProvider({ children }: { children: ReactNode }) {
   const [ma, setMa] = useState<string | null>(null);
   const mo = useCallback((m: string) => setMa(m), []);
   const dong = useCallback(() => setMa(null), []);
+  // Doi trang (hash) -> dong drawer.
+  useEffect(() => {
+    addEventListener("hashchange", dong);
+    return () => removeEventListener("hashchange", dong);
+  }, [dong]);
   return (
     <Ctx.Provider value={mo}>
       {children}

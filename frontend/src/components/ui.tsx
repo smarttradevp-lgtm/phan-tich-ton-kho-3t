@@ -1,23 +1,36 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+
+// Man hinh hep (< 768px = duoi breakpoint md cua Tailwind) -> bang chuyen sang dang the, modal thanh bottom sheet.
+const MQ = "(max-width: 767px)";
+export function useMobile(): boolean {
+  const [m, setM] = useState(() => typeof matchMedia !== "undefined" && matchMedia(MQ).matches);
+  useEffect(() => {
+    const q = matchMedia(MQ);
+    const f = () => setM(q.matches);
+    q.addEventListener("change", f);
+    return () => q.removeEventListener("change", f);
+  }, []);
+  return m;
+}
 import { boDau } from "../lib/excel";
 
 export function TieuDe({ ten, moTa, phai }: { ten: string; moTa?: ReactNode; phai?: ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold tracking-tight">{ten}</h1>
-        {moTa && <div className="mt-1 text-sm text-ink-soft">{moTa}</div>}
+        <h1 className="text-lg font-bold tracking-tight md:text-xl">{ten}</h1>
+        {moTa && <div className="mt-1 text-xs text-ink-soft md:text-sm">{moTa}</div>}
       </div>
-      {phai && <div className="flex flex-wrap items-center gap-2">{phai}</div>}
+      {phai && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">{phai}</div>}
     </div>
   );
 }
 
 export function Chon<T extends string>({ nhan, giaTri, dat, luaChon }: { nhan: string; giaTri: T; dat: (v: T) => void; luaChon: { v: T; t: string }[] }) {
   return (
-    <label className="flex items-center gap-1.5 text-sm text-ink-soft">
+    <label className="flex min-w-0 flex-col gap-0.5 text-xs text-ink-soft sm:flex-row sm:items-center sm:gap-1.5 sm:text-sm">
       {nhan}
-      <select className="input max-w-[260px]" value={giaTri} onChange={(e) => dat(e.target.value as T)}>
+      <select className="input w-full min-w-0 sm:w-auto sm:max-w-[260px]" value={giaTri} onChange={(e) => dat(e.target.value as T)}>
         {luaChon.map((o) => (
           <option key={o.v} value={o.v}>
             {o.t}
@@ -48,16 +61,16 @@ export function O({ nhan, so, phu, mau, icon, onClick }: { nhan: string; so: Rea
           </span>
         )}
       </div>
-      <div className={`mt-1 text-2xl font-bold tabular-nums ${mau ? MAU_CHU[mau] : "text-ink"}`}>{so}</div>
-      {phu && <div className="mt-1 text-xs text-ink-soft">{phu}</div>}
+      <div className={`mt-1 text-xl font-bold tabular-nums md:text-2xl ${mau ? MAU_CHU[mau] : "text-ink"}`}>{so}</div>
+      {phu && <div className="mt-1 line-clamp-2 text-[11px] leading-snug text-ink-soft md:text-xs">{phu}</div>}
     </>
   );
   return onClick ? (
-    <button className="card text-left transition hover:border-primary hover:shadow-sm" onClick={onClick}>
+    <button className="card p-3 text-left transition hover:border-primary hover:shadow-sm md:p-4" onClick={onClick}>
       {noiDung}
     </button>
   ) : (
-    <div className="card">{noiDung}</div>
+    <div className="card p-3 md:p-4">{noiDung}</div>
   );
 }
 
@@ -122,7 +135,7 @@ export function Drawer({ mo, dong, tieuDe, phu, children, rong = "max-w-3xl" }: 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30" onClick={dong}>
       <div className={`flex h-full w-full ${rong} flex-col bg-white shadow-xl`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 md:px-5 md:py-4">
           <div className="min-w-0">
             <div className="text-lg font-bold">{tieuDe}</div>
             {phu && <div className="mt-0.5 text-sm text-ink-soft">{phu}</div>}
@@ -131,7 +144,7 @@ export function Drawer({ mo, dong, tieuDe, phu, children, rong = "max-w-3xl" }: 
             ✕
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-5">{children}</div>
       </div>
     </div>
   );
@@ -140,11 +153,15 @@ export function Drawer({ mo, dong, tieuDe, phu, children, rong = "max-w-3xl" }: 
 export function Modal({ mo, dong, tieuDe, children, chan, rong = "max-w-lg" }: { mo: boolean; dong: () => void; tieuDe: ReactNode; children: ReactNode; chan?: ReactNode; rong?: string }) {
   if (!mo) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" onClick={dong}>
-      <div className={`card w-full ${rong} shadow-xl`} onClick={(e) => e.stopPropagation()}>
-        <h3 className="mb-3 text-base font-semibold">{tieuDe}</h3>
-        {children}
-        {chan && <div className="mt-4 flex justify-end gap-2">{chan}</div>}
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/30 md:items-center md:p-4" onClick={dong}>
+      <div
+        className={`flex max-h-[90dvh] w-full ${rong} flex-col rounded-t-2xl border border-line bg-white shadow-xl md:rounded-xl`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-line md:hidden" />
+        <h3 className="px-4 pb-2 pt-3 text-base font-semibold md:px-5 md:pt-4">{tieuDe}</h3>
+        <div className="flex-1 overflow-y-auto px-4 md:px-5">{children}</div>
+        {chan && <div className="flex justify-end gap-2 border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:mt-2 md:px-5 [&>*]:flex-1 md:[&>*]:flex-none">{chan}</div>}
       </div>
     </div>
   );
@@ -156,15 +173,19 @@ export interface Cot<R> {
   so?: boolean;
   cls?: string;
   sx?: (r: R) => number | string | null | undefined; // gia tri sap xep; khong co = cot khong sap xep duoc
+  // Hien thi o dang the (mobile): tieu_de = dong dau dam, phu = dong phu, nhan = goc phai (badge), an = an; mac dinh = luoi nhan/gia tri.
+  the?: "tieu_de" | "phu" | "nhan" | "an";
 }
 
 // Bang phan trang phia trinh duyet + o tim (khop khong dau theo timTheo) + bam tieu de de sap xep.
+// Mobile: moi dong thanh 1 the (bo tri theo Cot.the), sap xep chon bang o "Sắp xếp"; dongTong -> tongThe (neu co).
 export function Bang<R>({
-  rows, cot, timTheo, kichThuoc = 50, dongTong, onClick, chon, datChon, khoa, congCu,
+  rows, cot, timTheo, kichThuoc = 50, dongTong, tongThe, onClick, chon, datChon, khoa, congCu,
 }: {
-  rows: R[]; cot: Cot<R>[]; timTheo?: (r: R) => string; kichThuoc?: number; dongTong?: ReactNode; onClick?: (r: R) => void;
+  rows: R[]; cot: Cot<R>[]; timTheo?: (r: R) => string; kichThuoc?: number; dongTong?: ReactNode; tongThe?: ReactNode; onClick?: (r: R) => void;
   chon?: Set<string>; datChon?: (s: Set<string>) => void; khoa?: (r: R) => string; congCu?: ReactNode;
 }) {
+  const mobile = useMobile();
   const [tim, setTim] = useState("");
   const [trang, setTrang] = useState(0);
   const [co, setCo] = useState(kichThuoc);
@@ -186,108 +207,202 @@ export function Bang<R>({
     return r;
   }, [rows, tim, timTheo, sx, cot]);
   useEffect(() => setTrang(0), [rows]);
-  const soTrang = Math.max(1, Math.ceil(loc.length / co));
+  const coTrang = mobile ? Math.min(co, 25) : co;
+  const soTrang = Math.max(1, Math.ceil(loc.length / coTrang));
   const t = Math.min(trang, soTrang - 1);
-  const hien = loc.slice(t * co, (t + 1) * co);
+  const hien = loc.slice(t * coTrang, (t + 1) * coTrang);
   const coChon = !!(chon && datChon && khoa);
   const tatCaDaChon = coChon && loc.length > 0 && loc.every((r) => chon!.has(khoa!(r)));
+  const doiChon = (k: string) => {
+    const s = new Set(chon);
+    s.has(k) ? s.delete(k) : s.add(k);
+    datChon!(s);
+  };
+  const chonTatCa = () => {
+    const s = new Set(chon);
+    for (const r of loc) tatCaDaChon ? s.delete(khoa!(r)) : s.add(khoa!(r));
+    datChon!(s);
+  };
+  const phanTrang = (
+    <div className="flex items-center gap-1 text-sm">
+      {!mobile && (
+        <select className="input py-1 text-xs" value={co} onChange={(e) => (setCo(Number(e.target.value)), setTrang(0))}>
+          {[25, 50, 100, 200].map((n) => (
+            <option key={n} value={n}>
+              {n} / trang
+            </option>
+          ))}
+        </select>
+      )}
+      <button className="btn btn-sm" disabled={t === 0} onClick={() => setTrang(t - 1)} aria-label="Trang trước">
+        ‹
+      </button>
+      <span className="px-1 tabular-nums">
+        {t + 1}/{soTrang}
+      </span>
+      <button className="btn btn-sm" disabled={t >= soTrang - 1} onClick={() => setTrang(t + 1)} aria-label="Trang sau">
+        ›
+      </button>
+    </div>
+  );
+  const cotSx = cot.map((c, i) => ({ c, i })).filter((x) => x.c.sx && x.c.ten);
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {timTheo && (
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Icon ten="tim" cls="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-ink-soft" />
-            <input className="input w-72 pl-8" placeholder="Tìm mã / tên…" value={tim} onChange={(e) => (setTim(e.target.value), setTrang(0))} />
+            <input className="input w-full pl-8 sm:w-72" placeholder="Tìm mã / tên…" value={tim} onChange={(e) => (setTim(e.target.value), setTrang(0))} />
           </div>
         )}
         <span className="text-sm text-ink-soft">{loc.length.toLocaleString("vi-VN")} dòng</span>
         {congCu}
-        <div className="ml-auto flex items-center gap-1 text-sm">
-          <select className="input py-1 text-xs" value={co} onChange={(e) => (setCo(Number(e.target.value)), setTrang(0))}>
-            {[25, 50, 100, 200].map((n) => (
-              <option key={n} value={n}>
-                {n} / trang
-              </option>
-            ))}
+        {mobile && cotSx.length > 0 && (
+          <select
+            className="input ml-auto py-1 text-xs"
+            value={sx ? `${sx.i}:${sx.tang ? 1 : 0}` : ""}
+            onChange={(e) => {
+              if (!e.target.value) return setSx(null);
+              const [i, tang] = e.target.value.split(":");
+              setSx({ i: Number(i), tang: tang === "1" });
+            }}
+            aria-label="Sắp xếp"
+          >
+            <option value="">Sắp xếp: mặc định</option>
+            {cotSx.flatMap(({ c, i }) => [
+              <option key={`${i}d`} value={`${i}:0`}>
+                {c.ten} ↓
+              </option>,
+              <option key={`${i}t`} value={`${i}:1`}>
+                {c.ten} ↑
+              </option>,
+            ])}
           </select>
-          <button className="btn btn-sm" disabled={t === 0} onClick={() => setTrang(t - 1)} aria-label="Trang trước">
-            ‹
-          </button>
-          <span className="px-1 tabular-nums">
-            {t + 1}/{soTrang}
-          </span>
-          <button className="btn btn-sm" disabled={t >= soTrang - 1} onClick={() => setTrang(t + 1)} aria-label="Trang sau">
-            ›
-          </button>
+        )}
+        {!mobile && <div className="ml-auto">{phanTrang}</div>}
+      </div>
+      {mobile ? (
+        <div className="space-y-2">
+          {coChon && loc.length > 0 && (
+            <label className="flex items-center gap-2 px-1 text-xs text-ink-soft">
+              <input type="checkbox" checked={tatCaDaChon} onChange={chonTatCa} /> Chọn tất cả {loc.length.toLocaleString("vi-VN")} dòng đang lọc
+            </label>
+          )}
+          {tongThe}
+          {hien.map((r, i) => (
+            <TheDong key={khoa?.(r) ?? i} r={r} cot={cot} onClick={onClick} chon={coChon ? chon!.has(khoa!(r)) : undefined} doiChon={coChon ? () => doiChon(khoa!(r)) : undefined} />
+          ))}
+          {!hien.length && <div className="card py-8 text-center text-sm text-ink-soft">Không có dữ liệu</div>}
+          {soTrang > 1 && <div className="flex justify-center pt-1">{phanTrang}</div>}
         </div>
-      </div>
-      <div className="max-h-[68vh] overflow-auto rounded-xl border border-line">
-        <table className="tbl">
-          <thead>
-            <tr>
-              {coChon && (
-                <th className="w-8">
-                  <input
-                    type="checkbox"
-                    checked={tatCaDaChon}
-                    onChange={() => {
-                      const s = new Set(chon);
-                      for (const r of loc) tatCaDaChon ? s.delete(khoa!(r)) : s.add(khoa!(r));
-                      datChon!(s);
-                    }}
-                    title="Chọn tất cả dòng đang lọc"
-                  />
-                </th>
-              )}
-              {cot.map((c, i) => (
-                <th
-                  key={c.ten + i}
-                  className={`${c.so ? "so" : ""} ${c.sx ? "cursor-pointer select-none hover:text-ink" : ""}`}
-                  onClick={c.sx ? () => setSx(sx?.i === i ? (sx.tang ? { i, tang: false } : null) : { i, tang: !c.so }) : undefined}
-                >
-                  {c.ten}
-                  {sx?.i === i && <span className="ml-0.5 text-primary">{sx.tang ? "▲" : "▼"}</span>}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dongTong}
-            {hien.map((r, i) => {
-              const k = khoa?.(r);
-              return (
-                <tr key={k ?? i} className={`${onClick ? "cursor-pointer" : ""} hover:bg-subtle ${k && chon?.has(k) ? "bg-primary-soft/60" : ""}`} onClick={onClick ? () => onClick(r) : undefined}>
-                  {coChon && (
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={chon!.has(k!)}
-                        onChange={() => {
-                          const s = new Set(chon);
-                          s.has(k!) ? s.delete(k!) : s.add(k!);
-                          datChon!(s);
-                        }}
-                      />
-                    </td>
-                  )}
-                  {cot.map((c, j) => (
-                    <td key={c.ten + j} className={`${c.so ? "so" : ""} ${c.cls ?? ""}`}>
-                      {c.lay(r)}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-            {!hien.length && (
+      ) : (
+        <div className="max-h-[68vh] overflow-auto rounded-xl border border-line">
+          <table className="tbl">
+            <thead>
               <tr>
-                <td colSpan={cot.length + (coChon ? 1 : 0)} className="py-10 text-center text-ink-soft">
-                  Không có dữ liệu
-                </td>
+                {coChon && (
+                  <th className="w-8">
+                    <input type="checkbox" checked={tatCaDaChon} onChange={chonTatCa} title="Chọn tất cả dòng đang lọc" />
+                  </th>
+                )}
+                {cot.map((c, i) => (
+                  <th
+                    key={c.ten + i}
+                    className={`${c.so ? "so" : ""} ${c.sx ? "cursor-pointer select-none hover:text-ink" : ""}`}
+                    onClick={c.sx ? () => setSx(sx?.i === i ? (sx.tang ? { i, tang: false } : null) : { i, tang: !c.so }) : undefined}
+                  >
+                    {c.ten}
+                    {sx?.i === i && <span className="ml-0.5 text-primary">{sx.tang ? "▲" : "▼"}</span>}
+                  </th>
+                ))}
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {dongTong}
+              {hien.map((r, i) => {
+                const k = khoa?.(r);
+                return (
+                  <tr key={k ?? i} className={`${onClick ? "cursor-pointer" : ""} hover:bg-subtle ${k && chon?.has(k) ? "bg-primary-soft/60" : ""}`} onClick={onClick ? () => onClick(r) : undefined}>
+                    {coChon && (
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={chon!.has(k!)} onChange={() => doiChon(k!)} />
+                      </td>
+                    )}
+                    {cot.map((c, j) => (
+                      <td key={c.ten + j} className={`${c.so ? "so" : ""} ${c.cls ?? ""}`}>
+                        {c.lay(r)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+              {!hien.length && (
+                <tr>
+                  <td colSpan={cot.length + (coChon ? 1 : 0)} className="py-10 text-center text-ink-soft">
+                    Không có dữ liệu
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 1 dong dang the (mobile). Cot khong co ten (nut thao tac) dat o cuoi the.
+function TheDong<R>({ r, cot, onClick, chon, doiChon }: { r: R; cot: Cot<R>[]; onClick?: (r: R) => void; chon?: boolean; doiChon?: () => void }) {
+  const tieuDe = cot.filter((c) => c.the === "tieu_de");
+  const phu = cot.filter((c) => c.the === "phu");
+  const nhan = cot.filter((c) => c.the === "nhan");
+  const kv = cot.filter((c) => !c.the && c.ten);
+  const thaoTac = cot.filter((c) => !c.the && !c.ten);
+  return (
+    <div className={`card p-3 ${onClick ? "cursor-pointer active:bg-subtle" : ""} ${chon ? "border-primary bg-primary-soft/40" : ""}`} onClick={onClick ? () => onClick(r) : undefined}>
+      <div className="flex items-start gap-2">
+        {doiChon && <input type="checkbox" className="mt-1" checked={!!chon} onClick={(e) => e.stopPropagation()} onChange={doiChon} />}
+        <div className="min-w-0 flex-1">
+          {tieuDe.length > 0 && (
+            <div className="text-sm font-semibold leading-snug [&_span]:max-w-none [&_span]:whitespace-normal">
+              {tieuDe.map((c, i) => (
+                <span key={i}>{c.lay(r)} </span>
+              ))}
+            </div>
+          )}
+          {phu.length > 0 && (
+            <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-ink-soft">
+              {phu.map((c, i) => (
+                <span key={i}>{c.lay(r)}</span>
+              ))}
+            </div>
+          )}
+        </div>
+        {nhan.length > 0 && (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 text-xs text-ink-soft">
+            {nhan.map((c, i) => (
+              <span key={i}>{c.lay(r)}</span>
+            ))}
+          </div>
+        )}
       </div>
+      {kv.length > 0 && (
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-line pt-2 text-xs sm:grid-cols-3">
+          {kv.map((c, i) => (
+            <div key={i} className="min-w-0">
+              <dt className="truncate text-ink-soft">{c.ten}</dt>
+              <dd className={`truncate font-medium ${c.so ? "tabular-nums" : ""}`}>{c.lay(r)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {thaoTac.length > 0 && (
+        <div className="mt-2 flex justify-end gap-1 border-t border-line pt-2">
+          {thaoTac.map((c, i) => (
+            <span key={i}>{c.lay(r)}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
