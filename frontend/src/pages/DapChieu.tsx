@@ -7,7 +7,7 @@ import { Bang, Chon, ChonGiaTri, duyNhat, Loi, NhanXepLoai, TaiDang, TieuDe, typ
 export interface DapChieuDong {
   nhom: string; ma: string; ten: string; xep_loai: string; phan_loai_dap_chieu: string; noi_san_xuat: string; phan_loai: string;
   nganh: string; he_so: number; ton: number; tb3: number; tb6: number; du_tru: number; ton_du: number; gia_nhap: number | null;
-  gia_nhap_tam: boolean; gia_tri_ton: number | null; gia_tri_du_tru: number | null; gia_tri_ton_du: number | null; xuat: number[];
+  gia_nhap_nguon: "nhap" | "du_phong" | "khong_co"; gia_tri_ton: number | null; gia_tri_du_tru: number | null; gia_tri_ton_du: number | null; xuat: number[];
 }
 export interface DapChieuKq { thang_n: string; thang: string[]; moc_so_chi_tiet: string | null; moc_ton_kho: string | null; rows: DapChieuDong[] }
 
@@ -60,7 +60,16 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
     { ten: "TB 6 tháng", lay: (r) => fmtSo(r.tb6), so: true },
     { ten: "SL dự trữ", lay: (r) => fmtSo(r.du_tru), so: true },
     { ten: "Tồn dư", lay: (r) => <span className={r.ton_du < 0 ? "font-semibold text-danger" : ""}>{fmtSo(r.ton_du, 2)}</span>, so: true },
-    { ten: "Giá nhập", lay: (r) => (r.gia_nhap == null ? "" : <span title={r.gia_nhap_tam ? "Tạm dùng giá dự phòng — chưa có giá nhập" : ""} className={r.gia_nhap_tam ? "italic text-warning" : ""}>{fmtSo(r.gia_nhap)}{r.gia_nhap_tam ? "*" : ""}</span>), so: true },
+    {
+      ten: "Giá nhập",
+      lay: (r) =>
+        r.gia_nhap_nguon === "nhap" ? fmtSo(r.gia_nhap) : (
+          <span title={r.gia_nhap_nguon === "du_phong" ? "Tạm dùng giá dự phòng — chưa có giá nhập" : "Chưa có giá nhập lẫn giá dự phòng — tính = 0"} className="italic text-warning">
+            {fmtSo(r.gia_nhap ?? 0)}*
+          </span>
+        ),
+      so: true,
+    },
     { ten: "GT tồn", lay: (r) => fmtSo(r.gia_tri_ton), so: true },
     { ten: "GT dự trữ", lay: (r) => fmtSo(r.gia_tri_du_tru), so: true },
     { ten: "GT tồn dư", lay: (r) => fmtSo(r.gia_tri_ton_du), so: true },
@@ -124,7 +133,7 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
         />
       )}
       <p className="mt-2 text-xs text-ink-soft">
-        SL dự trữ = ROUNDUP((TB 3 tháng + Xuất tháng N) / 2 × Hệ số) · TB chia cố định 3 / 6 tháng (tháng không xuất = 0) · Giá có dấu * = tạm dùng giá dự phòng, chưa có giá nhập.
+        SL dự trữ = ROUNDUP((TB 3 tháng + Xuất tháng N) / 2 × Hệ số) · TB chia cố định 3 / 6 tháng (tháng không xuất = 0) · Giá có dấu * = chưa có giá nhập: tạm dùng giá dự phòng, không có thì = 0.
       </p>
     </div>
   );

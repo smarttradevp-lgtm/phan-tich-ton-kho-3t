@@ -92,7 +92,7 @@ Mỗi (kho KTV, mã) từ S2: `Xuất`, `Tồn`. Thông tin kho từ S4.
 - **Phân loại LK:** khai báo trong Cài đặt của app này (nhân sự tự bổ sung), KHÔNG dùng cột "Phân loại đặc thù" của
   linh-kien-app (cột đó chỉ lưu được khi bật cờ Đặc thù — cờ quyết định bước TBP duyệt đơn).
 - **Tháng N:** tháng hiện tại (lũy kế). Sheet từng lệch tháng do hàm ở "2.2. Filter xuất trong tháng" kéo thiếu — đã sửa bên Sheet.
-- **Giá nhập:** import / sửa tay; chưa có → giá dự phòng từ linh-kien-app, gắn nhãn "Tạm dùng giá dự phòng".
+- **Giá nhập:** import / sửa tay; chưa có → giá dự phòng từ linh-kien-app, không có → 0 (chốt 29/10/2026), cả 2 trường hợp gắn nhãn \* trên báo cáo.
 - Khác Sheet (có chủ đích): TB 3/6 tháng chia cố định (Sheet `AVERAGEA` bỏ ô trống); LK có dòng khai báo nhưng để TRỐNG hệ số /
   leadtime → dùng mặc định (Sheet `VLOOKUP` trả ô trống = 0); xuất trống ở thu hồi = 0 → vào Nhóm 2 (Sheet không bao giờ ra Nhóm 2);
   số lượng đọc thành số khi import (Sheet đọc "6.11" thành ngày).

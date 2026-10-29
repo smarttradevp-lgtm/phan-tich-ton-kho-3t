@@ -22,7 +22,7 @@ export default function TongQuan({ moTrang }: { moTrang: (t: string) => void }) 
     <div>
       <TieuDe ten="Tổng quan tồn kho 3T" />
       <div className="mb-6 grid gap-3 md:grid-cols-4">
-        <O nhan="Giá trị tồn kho" so={fmtSo(giaTri)} phu="Theo giá nhập (tạm dùng giá dự phòng nếu chưa có)" />
+        <O nhan="Giá trị tồn kho" so={fmtSo(giaTri)} phu="Theo giá nhập; chưa có → giá dự phòng, không có → 0" />
         <button className="text-left" onClick={() => moTrang("t5")}>
           <O nhan="Mã nguy cơ thiếu (T5)" so={fmtSo(t5.length)} mau="danger" phu="Đã loại LK cắt mã — bấm để xem" />
         </button>

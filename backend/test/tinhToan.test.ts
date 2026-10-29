@@ -66,13 +66,14 @@ test("Dap chieu: TB chia co dinh 3/6 (thang khong xuat = 0), du tru, ton du, gia
   assert.equal(r.xuat[2], 12);
 });
 
-test("Dap chieu: LK chua khai bao -> he so mac dinh 2, nhan 'Chưa khai báo', khong gia", () => {
+test("Dap chieu: LK chua khai bao -> he so mac dinh 2, nhan 'Chưa khai báo', gia = 0", () => {
   const [r] = tinhDapChieu("202610", [{ nhom: "Gộp chung", ma: "X", ten: "X", ton: 0, xuat: new Map([["202610", 3]]) }], new Map(), ts);
   assert.equal(r.he_so, 2);
   assert.equal(r.du_tru, 4); // ROUNDUP((1 + 3)/2 * 2)
   assert.equal(r.xep_loai, "T5");
   assert.equal(r.phan_loai, "Chưa khai báo");
-  assert.equal(r.gia_tri_ton, null);
+  assert.equal(r.gia_tri_ton, 0);
+  assert.equal(r.gia_nhap_nguon, "khong_co");
 });
 
 test("T5: bo LK cat ma, xep thieu nhieu nhat len dau", () => {

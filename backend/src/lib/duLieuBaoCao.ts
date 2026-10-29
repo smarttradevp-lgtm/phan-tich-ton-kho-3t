@@ -53,7 +53,8 @@ function loaiKho(kho: Map<string, KhoRow>, ma: string, macDinh: KhoRow["loai"] =
   return kho.get(ma)?.loai ?? macDinh;
 }
 
-// Khai bao LK + ten tu danh muc dong bo; gia nhap chua co -> gia du phong (gia_nhap_tam = true).
+// Khai bao LK + ten tu danh muc dong bo. Chot 29/10/2026: gia nhap chua co -> gia du phong (linh-kien-app), khong co -> 0;
+// gia_nhap_nguon cho biet dang dung gia nao (FE gan nhan).
 export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk & { leadtime?: number | null; ten_dm?: string | null }>> {
   const { results } = await db
     .prepare(
@@ -66,7 +67,7 @@ export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk 
     .all<{ ma: string; ten: string | null; phan_loai: string | null; nganh: string | null; noi_san_xuat: string | null; he_so_du_tru: number | null; leadtime: number | null; gia_nhap: number | null; gia_du_phong: number | null }>();
   return new Map(
     results.map((r) => {
-      const tam = r.gia_nhap == null && r.gia_du_phong != null && r.gia_du_phong > 0;
+      const nguon: "nhap" | "du_phong" | "khong_co" = r.gia_nhap != null ? "nhap" : (r.gia_du_phong ?? 0) > 0 ? "du_phong" : "khong_co";
       return [
         r.ma,
         {
@@ -76,8 +77,8 @@ export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk 
           noi_san_xuat: r.noi_san_xuat,
           he_so_du_tru: r.he_so_du_tru,
           leadtime: r.leadtime,
-          gia_nhap: r.gia_nhap ?? (tam ? r.gia_du_phong : null),
-          gia_nhap_tam: tam,
+          gia_nhap: nguon === "nhap" ? r.gia_nhap : nguon === "du_phong" ? r.gia_du_phong : 0,
+          gia_nhap_nguon: nguon,
         },
       ];
     }),

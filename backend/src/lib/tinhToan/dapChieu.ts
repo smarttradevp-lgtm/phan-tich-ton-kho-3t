@@ -12,7 +12,7 @@ export interface KhaiBaoLk {
   noi_san_xuat?: string | null;
   he_so_du_tru?: number | null;
   gia_nhap?: number | null;
-  gia_nhap_tam?: boolean; // true = dang dung gia du phong (chua co gia nhap)
+  gia_nhap_nguon?: "nhap" | "du_phong" | "khong_co"; // khong_co = chua co gia nhap lan gia du phong (gia = 0)
 }
 
 export interface DapChieuDauVao {
@@ -38,11 +38,11 @@ export interface DapChieuDong {
   tb6: number;
   du_tru: number;
   ton_du: number;
-  gia_nhap: number | null;
-  gia_nhap_tam: boolean;
-  gia_tri_ton: number | null;
-  gia_tri_du_tru: number | null;
-  gia_tri_ton_du: number | null;
+  gia_nhap: number;
+  gia_nhap_nguon: "nhap" | "du_phong" | "khong_co";
+  gia_tri_ton: number;
+  gia_tri_du_tru: number;
+  gia_tri_ton_du: number;
   xuat: number[]; // [Xuat_0 = thang N, Xuat_1, ...] do dai = so_thang_hien_thi
 }
 
@@ -75,7 +75,8 @@ export function tinhDapChieu(thangN: string, dauVao: DapChieuDauVao[], khaiBao: 
     const heSo = kb.he_so_du_tru ?? ts.he_so_du_tru_mac_dinh;
     const duTru = roundUp(((tb3 + xuat[0]) / 2) * heSo);
     const tonDu = d.ton - duTru;
-    const gia = kb.gia_nhap ?? null;
+    // Chot 29/10/2026: chua co gia nhap -> gia du phong (da gan o duLieuBaoCao), khong co -> 0.
+    const gia = kb.gia_nhap ?? 0;
     return {
       nhom: d.nhom,
       ma: d.ma,
@@ -92,10 +93,10 @@ export function tinhDapChieu(thangN: string, dauVao: DapChieuDauVao[], khaiBao: 
       du_tru: duTru,
       ton_du: tonDu,
       gia_nhap: gia,
-      gia_nhap_tam: !!kb.gia_nhap_tam,
-      gia_tri_ton: gia == null ? null : gia * d.ton,
-      gia_tri_du_tru: gia == null ? null : gia * duTru,
-      gia_tri_ton_du: gia == null ? null : gia * d.ton - gia * duTru,
+      gia_nhap_nguon: kb.gia_nhap_nguon ?? (kb.gia_nhap != null ? "nhap" : "khong_co"),
+      gia_tri_ton: gia * d.ton,
+      gia_tri_du_tru: gia * duTru,
+      gia_tri_ton_du: gia * d.ton - gia * duTru,
       xuat: xuat.slice(0, ts.so_thang_hien_thi),
     };
   });
