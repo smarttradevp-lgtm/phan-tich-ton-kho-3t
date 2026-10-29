@@ -6,6 +6,7 @@ import baoCaoRoutes from "./routes/baoCao";
 import caiDatRoutes from "./routes/caiDat";
 import importRoutes from "./routes/importDuLieu";
 import dongBoRoutes from "./routes/dongBo";
+import quanTriRoutes from "./routes/quanTri";
 import { xacThucPhien, napNguoiDung } from "./middleware/session";
 import { chayDongBo } from "./lib/dongBoLinhKien";
 import { chotThangTinh } from "./lib/chotThang";
@@ -41,6 +42,7 @@ app.route("/api/bao-cao", baoCaoRoutes);
 app.route("/api/cai-dat", caiDatRoutes);
 app.route("/api/import", importRoutes);
 app.route("/api/dong-bo", dongBoRoutes);
+app.route("/api/quan-tri", quanTriRoutes);
 
 app.onError((err, c) => {
   const requestId = c.get("requestId") ?? "unknown";

@@ -26,8 +26,9 @@ npm run deploy            # build + wrangler deploy (Worker THẬT)
 Chạy 1 test: `cd backend && node --experimental-strip-types --test --test-name-pattern "Leadtime" test/tinhToan.test.ts`.
 
 Dev local cần `.dev.vars` (gitignored) với `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `LINHKIEN_API_KEY`.
-Đăng nhập Google không chạy trên localhost → tạo user trong D1 local và tự ký cookie `ptk_session` (JWT HS256, payload
-`{email, pv: 0, iat, exp}`, xem `backend/src/lib/jwt.ts`).
+Đăng nhập Google không chạy trên localhost → thêm `DEV_LOGIN=1` vào `.dev.vars` rồi mở
+`http://localhost:8790/api/auth/dev-login[?email=...]` (tạo admin đã duyệt + ký cookie). Route này chỉ bật khi có biến đó VÀ host
+là localhost — KHÔNG bao giờ đặt `DEV_LOGIN` ở `wrangler.jsonc` / secrets thật.
 
 ## Kiến trúc
 
@@ -54,6 +55,19 @@ Dev local cần `.dev.vars` (gitignored) với `SESSION_SECRET`, `GOOGLE_CLIENT_
   `/v1/danh-ba-kho`. 3 API sau được thêm ở linh-kien-app nhánh `claude/api-phan-tich-ton-kho` — phải deploy linh-kien-app
   trước. Cron mỗi giờ: tồn kho; 18h UTC (1h VN): danh mục + danh bạ + `chotThangTinh()` (tháng đã qua
   `so_thang_chot_tinh` tháng → ghi tĩnh vào `xuat_thang` nguồn `chot`).
+- **Import tồn kho từ Excel** (`POST /import/ton-kho`, file MISA "Tổng hợp tồn kho"): thay tạm đồng bộ linh-kien-app khi API chưa
+  triển khai. Mỗi file = 1 `ton_kho_phien` `nguon='import'` (migration 0002); lô đầu tạo phiên `dang_keo`, các lô ghi thẳng `ton_kho`,
+  lô cuối đánh dấu `xong` + kỳ (từ/đến ngày do người nhập chọn). Kho loại `ktv` → dòng nguồn `ktv`; mã kho mới → thêm `kho` loại `khac`.
+- **Quản trị** (`routes/quanTri.ts`, chỉ admin): đếm dòng từng bảng, danh sách phiên tồn (xoá phiên cũ, không xoá phiên đang
+  dùng), dọn sổ chi tiết trước ngày X (CHỈ tháng đã có `xuat_thang` tĩnh), xoá xuất tháng tĩnh 1 tháng, nhật ký. Mọi thao tác
+  cài đặt / người dùng / dọn dữ liệu ghi `nhat_ky` qua `lib/nhatKy.ts` (`lenhNhatKy` — gộp vào batch của thao tác chính).
+- **Phân loại so khớp không phân biệt hoa/thường** (`khoaPhanLoai` ở `duLieuBaoCao.ts`): khai báo viết khác hoa/thường được quy
+  về tên chuẩn trong `phan_loai_lk`; tên không có trong danh sách hiện ở Cài đặt › Phân loại (gộp qua `POST /cai-dat/phan-loai/gop`).
+- **Tổng quan** (`GET /bao-cao/tong-quan`) tính lại cả 3 báo cáo mỗi lần gọi + kiểm tra chất lượng dữ liệu; chi tiết 1 LK
+  (`GET /bao-cao/lk/:ma`) dùng chung drawer `components/ChiTietLk.tsx` (`useMoLk()`) cho mọi bảng báo cáo.
+- **Frontend**: hash routing (`#/cai-dat/lk`, `#/quan-tri/du-lieu`…), menu ở `App.tsx` (`NHOM`). Bảng dùng chung `Bang` (tìm không
+  dấu, bấm tiêu đề sắp xếp theo `Cot.sx`, chọn nhiều dòng). Biểu đồ tự dựng `components/bieuDo.tsx` (1 chuỗi = màu primary, đỏ chỉ
+  cho mức nguy cơ). Chưa có giá nhập lẫn dự phòng → Tổng quan / Đắp chiếu tự hiển thị theo số lượng thay vì giá trị.
 - **Nguồn chưa có API**: `dvbh_thieu_lk` (ca DVBH báo thiếu) và `hang_dang_ve` (EO Mua hàng) đã có bảng + đã nối vào báo cáo
   leadtime, nhưng chưa có code đồng bộ.
 - **Auth**: Google OAuth, cookie `ptk_session` 72h trượt; `users.vai_tro` = `admin` | `nhap_lieu` | `xem`, tài khoản mới

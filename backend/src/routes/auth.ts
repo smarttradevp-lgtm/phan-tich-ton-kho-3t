@@ -64,6 +64,18 @@ auth.get("/callback", async (c) => {
   return c.redirect(c.env.FRONTEND_URL || "/");
 });
 
+// CHI de chay demo / dev local: bat bang DEV_LOGIN=1 trong .dev.vars (khong bao gio dat o wrangler.jsonc) va chi nhan
+// request toi localhost. Dang nhap thang bang email ?email= (tao admin da duyet neu chua co).
+auth.get("/dev-login", async (c) => {
+  const host = new URL(c.req.url).hostname;
+  if (c.env.DEV_LOGIN !== "1" || !["localhost", "127.0.0.1"].includes(host)) return c.json({ error: "NOT_FOUND" }, 404);
+  const email = (c.req.query("email") || c.env.BOOTSTRAP_ADMIN_EMAIL).trim().toLowerCase();
+  await c.env.DB.prepare("INSERT OR IGNORE INTO users (email, ten, vai_tro, trang_thai) VALUES (?, 'Dev', 'admin', 'da_duyet')").bind(email).run();
+  const pv = (await c.env.DB.prepare("SELECT phien_ban_phien FROM users WHERE email = ?").bind(email).first<number>("phien_ban_phien")) ?? 0;
+  datCookiePhien(c, await signSession({ email, pv }, c.env.SESSION_SECRET, SESSION_TTL_SECONDS));
+  return c.redirect("/");
+});
+
 auth.post("/logout", (c) => {
   deleteCookie(c, SESSION_COOKIE, { path: "/" });
   return c.json({ ok: true });

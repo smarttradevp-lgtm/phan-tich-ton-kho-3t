@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
 import { Bang, Chon, ChonGiaTri, duyNhat, Loi, NhanCanhBao, TaiDang, TieuDe, type Cot } from "../components/ui";
+import { useMoLk } from "../components/ChiTietLk";
 
 interface Dong {
   kho: string; ma_kho: string | null; ma: string; ten: string; tieu_hao: [number, number, number]; ton: number;
@@ -20,6 +21,7 @@ export default function Leadtime() {
   const [muc, setMuc] = useState("");
   const [kho, setKho] = useState("");
   const [tanSuat, setTanSuat] = useState("");
+  const moLk = useMoLk();
   const q = useQuery({ queryKey: ["leadtime", loaiKho, gop], queryFn: () => api<Kq>(`/bao-cao/leadtime?loai_kho=${loaiKho}&gop=${gop ? 1 : 0}`) });
   const rows = q.data?.rows ?? [];
   const cs = q.data?.cua_so ?? [7, 14, 30];
@@ -38,22 +40,22 @@ export default function Leadtime() {
   );
 
   const cot: Cot<Dong>[] = [
-    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs" },
+    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
     { ten: "Tên sản phẩm", lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span> },
-    { ten: "Kho", lay: (r) => r.kho },
-    { ten: `TH ${cs[0]} ngày`, lay: (r) => fmtSo(r.tieu_hao[0], 2), so: true },
-    { ten: `TH ${cs[1]} ngày`, lay: (r) => fmtSo(r.tieu_hao[1], 2), so: true },
-    { ten: `TH ${cs[2]} ngày`, lay: (r) => fmtSo(r.tieu_hao[2], 2), so: true },
-    { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true },
-    { ten: "Phân loại", lay: (r) => r.phan_loai },
+    { ten: "Kho", lay: (r) => r.kho, sx: (r) => r.kho },
+    { ten: `TH ${cs[0]} ngày`, lay: (r) => fmtSo(r.tieu_hao[0], 2), so: true, sx: (r) => r.tieu_hao[0] },
+    { ten: `TH ${cs[1]} ngày`, lay: (r) => fmtSo(r.tieu_hao[1], 2), so: true, sx: (r) => r.tieu_hao[1] },
+    { ten: `TH ${cs[2]} ngày`, lay: (r) => fmtSo(r.tieu_hao[2], 2), so: true, sx: (r) => r.tieu_hao[2] },
+    { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton },
+    { ten: "Phân loại", lay: (r) => r.phan_loai, sx: (r) => r.phan_loai },
     { ten: `Cảnh báo ${cs[0]}N`, lay: (r) => <NhanCanhBao v={r.canh_bao[0]} /> },
     { ten: `Cảnh báo ${cs[1]}N`, lay: (r) => <NhanCanhBao v={r.canh_bao[1]} /> },
     { ten: `Cảnh báo ${cs[2]}N`, lay: (r) => <NhanCanhBao v={r.canh_bao[2]} /> },
-    { ten: "Số ngày dư", lay: (r) => fmtSo(r.so_ngay_du[i], 1), so: true },
-    { ten: "TB tiêu hao/ngày", lay: (r) => fmtSo(r.tb_ngay, 2), so: true },
-    { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan, 1), so: true },
+    { ten: "Số ngày dư", lay: (r) => fmtSo(r.so_ngay_du[i], 1), so: true, sx: (r) => r.so_ngay_du[i] },
+    { ten: "TB tiêu hao/ngày", lay: (r) => fmtSo(r.tb_ngay, 2), so: true, sx: (r) => r.tb_ngay },
+    { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan, 1), so: true, sx: (r) => r.ton_chuan },
     { ten: "Đang về", lay: (r) => fmtSo(r.hang_dang_ve || null), so: true },
-    { ten: "SL thiếu cần đặt", lay: (r) => <span className={r.sl_thieu_can_dat > 0 ? "font-semibold text-danger" : ""}>{fmtSo(r.sl_thieu_can_dat, 1)}</span>, so: true },
+    { ten: "SL thiếu cần đặt", lay: (r) => <span className={r.sl_thieu_can_dat > 0 ? "font-semibold text-danger" : ""}>{fmtSo(r.sl_thieu_can_dat, 1)}</span>, so: true, sx: (r) => r.sl_thieu_can_dat },
     { ten: "Tần suất", lay: (r) => r.tan_suat },
     { ten: "Hệ số NK", lay: (r) => fmtSo(r.he_so_nk, 2), so: true },
     { ten: "Leadtime", lay: (r) => fmtSo(r.leadtime), so: true },
@@ -108,7 +110,11 @@ export default function Leadtime() {
                     <td>{t.kho}</td>
                     <td>{t.d} ngày</td>
                     {t.dem.map((n, j) => (
-                      <td key={j} className={`so ${j < 2 && n ? "font-semibold text-danger" : ""}`}>{fmtSo(n)}</td>
+                      <td key={j} className={`so ${j < 2 && n ? "font-semibold text-danger" : ""}`}>
+                        <button className="hover:underline" title="Lọc danh sách theo ô này" onClick={() => (setKho(gop ? "" : t.kho), setCuaSo(String(cs.indexOf(t.d)) as "0" | "1" | "2"), setMuc(MUC[j]))}>
+                          {fmtSo(n)}
+                        </button>
+                      </td>
                     ))}
                   </tr>
                 ))}
@@ -121,7 +127,7 @@ export default function Leadtime() {
             <ChonGiaTri nhan="Mức cảnh báo" giaTri={muc} dat={setMuc} ds={MUC} />
             <ChonGiaTri nhan="Tần suất" giaTri={tanSuat} dat={setTanSuat} ds={["Tiêu nhiều", "Tiêu đều", "Khác (còn lại)", "Ít tiêu hao"]} />
           </div>
-          <Bang rows={loc} cot={cot} timTheo={(r) => `${r.ma} ${r.ten}`} />
+          <Bang rows={loc} cot={cot} timTheo={(r) => `${r.ma} ${r.ten}`} onClick={(r) => moLk(r.ma)} />
           <p className="mt-2 text-xs text-ink-soft">
             Số ngày dư = Tồn / (Tiêu hao / số ngày) − số ngày cửa sổ − Leadtime · &lt; −3 thiếu nghiêm trọng · &lt; 0 thiếu · ≤ 2 tới thời điểm đặt · Tồn chuẩn = TB tiêu hao/ngày × Hệ số NK × 30.
           </p>

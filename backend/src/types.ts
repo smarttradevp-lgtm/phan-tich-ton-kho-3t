@@ -11,6 +11,7 @@ export interface Env {
   FRONTEND_URL: string;
   SESSION_SECRET: string;
   BOOTSTRAP_ADMIN_EMAIL: string;
+  DEV_LOGIN?: string; // "1" = bat /api/auth/dev-login (chi .dev.vars, chi localhost)
 }
 
 export type VaiTro = "admin" | "nhap_lieu" | "xem";

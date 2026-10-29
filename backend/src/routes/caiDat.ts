@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { canVaiTro } from "../middleware/session";
 import { nowVN } from "../lib/vnTime";
-import { docThamSoDb } from "../lib/duLieuBaoCao";
+import { docThamSoDb, khoaPhanLoai } from "../lib/duLieuBaoCao";
+import { lenhNhatKy } from "../lib/nhatKy";
 import { docThamSo, THAM_SO_MAC_DINH } from "../lib/tinhToan/thamSo";
 
 // Cai dat: tham so chung, khai bao LK, phan loai + he so thu hoi, ma tran thu hoi, kho. Xem: moi vai tro; ghi: nhap_lieu+.
@@ -26,6 +27,7 @@ caiDat.put("/tham-so", ghi, async (c) => {
   )
     .bind(JSON.stringify(ts), c.get("user").email, nowVN())
     .run();
+  await lenhNhatKy(c.env.DB, c.get("user").email, "Sửa tham số", ts).run();
   return c.json({ tham_so: ts });
 });
 
@@ -61,7 +63,31 @@ caiDat.put("/lk/:ma", ghi, async (c) => {
   )
     .bind(ma, chuoi(b.ten), chuoi(b.phan_loai), chuoi(b.nganh), chuoi(b.noi_san_xuat), soHoacNull(b.he_so_du_tru), soHoacNull(b.leadtime), chuoi(b.doi_tac), chuoi(b.nhom_tuong_duong), gia, c.get("user").email, luc)
     .run();
+  await lenhNhatKy(c.env.DB, c.get("user").email, "Sửa khai báo LK", { ma }).run();
   return c.json({ ok: true });
+});
+
+// Sua hang loat nhieu LK: chi cac truong co trong gia_tri bi ghi (null = xoa khai bao truong do).
+const TRUONG_HANG_LOAT = ["phan_loai", "nganh", "noi_san_xuat", "he_so_du_tru", "leadtime", "doi_tac", "nhom_tuong_duong"] as const;
+caiDat.post("/lk/hang-loat", ghi, async (c) => {
+  const b = await c.req.json<{ ma?: string[]; gia_tri?: Record<string, unknown> }>();
+  const ma = [...new Set((b.ma ?? []).map((m) => String(m).trim()).filter(Boolean))];
+  if (!ma.length || ma.length > 5000) return c.json({ error: "SO_MA_KHONG_HOP_LE" }, 400);
+  const truong = TRUONG_HANG_LOAT.filter((t) => b.gia_tri && t in b.gia_tri);
+  if (!truong.length) return c.json({ error: "THIEU_TRUONG" }, 400);
+  const giaTri = truong.map((t) => (t === "he_so_du_tru" || t === "leadtime" ? soHoacNull(b.gia_tri![t]) : chuoi(b.gia_tri![t])));
+  const db = c.env.DB;
+  const luc = nowVN();
+  const email = c.get("user").email;
+  const r = await db.batch([
+    db.prepare(
+      `INSERT INTO lk_khai_bao (ma, ${truong.join(", ")}, nguoi_cap_nhat, ngay_cap_nhat)
+       SELECT value, ${truong.map((_, i) => `?${i + 3}`).join(", ")}, ?1, ?2 FROM json_each(?${truong.length + 3}) WHERE true
+       ON CONFLICT(ma) DO UPDATE SET ${truong.map((t) => `${t} = excluded.${t}`).join(", ")}, nguoi_cap_nhat = excluded.nguoi_cap_nhat, ngay_cap_nhat = excluded.ngay_cap_nhat`,
+    ).bind(email, luc, ...giaTri, JSON.stringify(ma)),
+    lenhNhatKy(db, email, "Sửa hàng loạt khai báo LK", { so_ma: ma.length, gia_tri: Object.fromEntries(truong.map((t, i) => [t, giaTri[i]])) }),
+  ]);
+  return c.json({ ok: true, so_ma: r[0].meta.changes });
 });
 
 // ---------------------------------------------------------------- Phan loai LK + he so thu hoi
@@ -70,7 +96,32 @@ caiDat.get("/phan-loai", async (c) => {
     c.env.DB.prepare("SELECT ten, he_so_thu_hoi, stt FROM phan_loai_lk ORDER BY stt, ten").all(),
     c.env.DB.prepare("SELECT phan_loai, nhom, danh_gia FROM ma_tran_thu_hoi").all(),
   ]);
-  return c.json({ phan_loai: pl.results, ma_tran: mt.results });
+  // So LK dang dung tung phan loai (so khop khong phan biet hoa/thuong) + phan loai "la" chua co trong danh sach.
+  const { results: dem } = await c.env.DB.prepare("SELECT phan_loai, COUNT(*) AS n FROM lk_khai_bao WHERE phan_loai IS NOT NULL GROUP BY phan_loai").all<{ phan_loai: string; n: number }>();
+  const chuan = new Map((pl.results as { ten: string }[]).map((p) => [khoaPhanLoai(p.ten), p.ten]));
+  const soLk: Record<string, number> = {};
+  const la: { ten: string; so_lk: number; goi_y: string | null }[] = [];
+  for (const d of dem) {
+    const ten = chuan.get(khoaPhanLoai(d.phan_loai));
+    if (ten) soLk[ten] = (soLk[ten] ?? 0) + d.n;
+    else la.push({ ten: d.phan_loai, so_lk: d.n, goi_y: null });
+    if (ten && ten !== d.phan_loai) la.push({ ten: d.phan_loai, so_lk: d.n, goi_y: ten });
+  }
+  const chuaPl = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM (SELECT ma FROM lk_khai_bao WHERE phan_loai IS NULL UNION SELECT ma FROM linh_kien WHERE ma NOT IN (SELECT ma FROM lk_khai_bao))").first<number>("n");
+  return c.json({ phan_loai: (pl.results as { ten: string }[]).map((p) => ({ ...p, so_lk: soLk[p.ten] ?? 0 })), ma_tran: mt.results, la, chua_phan_loai: chuaPl ?? 0 });
+});
+
+// Gop phan loai viet sai / la vao 1 phan loai chuan (doi khai bao cua moi LK dang dung ten cu).
+caiDat.post("/phan-loai/gop", ghi, async (c) => {
+  const b = await c.req.json<{ tu?: string; den?: string }>();
+  const tu = chuoi(b.tu), den = chuoi(b.den);
+  if (!tu || !den) return c.json({ error: "THIEU_TEN" }, 400);
+  const db = c.env.DB;
+  const r = await db.batch([
+    db.prepare("UPDATE lk_khai_bao SET phan_loai = ?, ngay_cap_nhat = ?, nguoi_cap_nhat = ? WHERE phan_loai = ?").bind(den, nowVN(), c.get("user").email, tu),
+    lenhNhatKy(db, c.get("user").email, "Gộp phân loại", { tu, den }),
+  ]);
+  return c.json({ ok: true, so_lk: r[0].meta.changes });
 });
 
 // Ghi lai TOAN BO danh sach phan loai + ma tran (form nho, it dong). Doi ten phan loai: gui ten_cu de chuyen khai bao LK theo.
@@ -87,6 +138,7 @@ caiDat.put("/phan-loai", ghi, async (c) => {
     ...pl.filter((p) => p.ten_cu && p.ten_cu !== p.ten).map((p) => db.prepare("UPDATE lk_khai_bao SET phan_loai = ? WHERE phan_loai = ?").bind(p.ten, p.ten_cu)),
     db.prepare("DELETE FROM phan_loai_lk"),
     db.prepare("INSERT INTO phan_loai_lk (ten, he_so_thu_hoi, stt) SELECT json_extract(value, '$.ten'), json_extract(value, '$.he_so'), json_extract(value, '$.stt') FROM json_each(?)").bind(JSON.stringify(pl)),
+    lenhNhatKy(db, c.get("user").email, "Sửa phân loại & ma trận thu hồi", { so_phan_loai: pl.length }),
     db.prepare("DELETE FROM ma_tran_thu_hoi"),
     db.prepare(
       "INSERT INTO ma_tran_thu_hoi (phan_loai, nhom, danh_gia) SELECT json_extract(value, '$.phan_loai'), json_extract(value, '$.nhom'), json_extract(value, '$.danh_gia') FROM json_each(?)",
@@ -122,6 +174,7 @@ caiDat.put("/kho/:ma", ghi, async (c) => {
       lamViec !== undefined ? 1 : 0, b.phong_ban_tay !== undefined ? 1 : 0, b.khu_vuc_tay !== undefined ? 1 : 0,
     )
     .run();
+  await lenhNhatKy(c.env.DB, c.get("user").email, "Sửa kho", { ma, ...b }).run();
   return c.json({ ok: !!r.meta.changes });
 });
 

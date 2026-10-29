@@ -55,7 +55,14 @@ function loaiKho(kho: Map<string, KhoRow>, ma: string, macDinh: KhoRow["loai"] =
 
 // Khai bao LK + ten tu danh muc dong bo. Chot 29/10/2026: gia nhap chua co -> gia du phong (linh-kien-app), khong co -> 0;
 // gia_nhap_nguon cho biet dang dung gia nao (FE gan nhan).
+// Chuan hoa ten phan loai de so khop (khong phan biet hoa/thuong, khoang trang thua).
+export const khoaPhanLoai = (s: string) => s.normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
+
 export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk & { leadtime?: number | null; ten_dm?: string | null }>> {
+  // Phan loai khai bao viet khac hoa/thuong (vd "thuộc diện cắt mã") quy ve ten chuan trong phan_loai_lk.
+  const tenChuan = new Map(
+    (await db.prepare("SELECT ten FROM phan_loai_lk").all<{ ten: string }>()).results.map((p) => [khoaPhanLoai(p.ten), p.ten]),
+  );
   const { results } = await db
     .prepare(
       `SELECT m.ma, COALESCE(l.ten, k.ten) AS ten, k.phan_loai, k.nganh, k.noi_san_xuat, k.he_so_du_tru, k.leadtime,
@@ -72,7 +79,7 @@ export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk 
         r.ma,
         {
           ten: r.ten,
-          phan_loai: r.phan_loai,
+          phan_loai: r.phan_loai ? tenChuan.get(khoaPhanLoai(r.phan_loai)) ?? r.phan_loai.trim() : null,
           nganh: r.nganh,
           noi_san_xuat: r.noi_san_xuat,
           he_so_du_tru: r.he_so_du_tru,
@@ -86,7 +93,7 @@ export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk 
 }
 
 // Xuat theo thang: thang co du lieu tinh (xuat_thang) dung bang tinh; thang khac cong dong tu so_chi_tiet.
-export async function docXuatThang(db: D1Database, thang: string[]): Promise<{ thang: string; ma_kho: string; ma_hang: string; ten_hang: string | null; sl: number }[]> {
+export async function docXuatThang(db: D1Database, thang: string[], maHang?: string): Promise<{ thang: string; ma_kho: string; ma_hang: string; ten_hang: string | null; sl: number }[]> {
   const tj = JSON.stringify(thang);
   const tinh = (await db.prepare("SELECT DISTINCT thang FROM xuat_thang WHERE thang IN (SELECT value FROM json_each(?))").bind(tj).all<{ thang: string }>()).results.map((r) => r.thang);
   const dong = thang.filter((t) => !tinh.includes(t));
@@ -94,15 +101,15 @@ export async function docXuatThang(db: D1Database, thang: string[]): Promise<{ t
   const { results } = await db
     .prepare(
       `SELECT thang, ma_kho, ma_hang, MAX(ten_hang) AS ten_hang, SUM(sl) AS sl FROM (
-         SELECT thang, ma_kho, ma_hang, ten_hang, sl_xuat AS sl FROM xuat_thang WHERE thang IN (SELECT value FROM json_each(?1))
+         SELECT thang, ma_kho, ma_hang, ten_hang, sl_xuat AS sl FROM xuat_thang WHERE thang IN (SELECT value FROM json_each(?1)) AND (?4 IS NULL OR ma_hang = ?4)
          UNION ALL
          SELECT substr(ngay_hach_toan, 1, 4) || substr(ngay_hach_toan, 6, 2) AS thang, ma_kho, ma_hang, ten_hang, sl_xuat
          FROM so_chi_tiet
-         WHERE ngay_hach_toan >= ?2 AND sl_xuat <> 0
+         WHERE ngay_hach_toan >= ?2 AND sl_xuat <> 0 AND (?4 IS NULL OR ma_hang = ?4)
            AND substr(ngay_hach_toan, 1, 4) || substr(ngay_hach_toan, 6, 2) IN (SELECT value FROM json_each(?3))
        ) GROUP BY thang, ma_kho, ma_hang`,
     )
-    .bind(tj, tuNgay, JSON.stringify(dong))
+    .bind(tj, tuNgay, JSON.stringify(dong), maHang ?? null)
     .all<{ thang: string; ma_kho: string; ma_hang: string; ten_hang: string | null; sl: number }>();
   return results;
 }

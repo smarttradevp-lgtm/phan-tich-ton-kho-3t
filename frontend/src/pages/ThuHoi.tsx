@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
 import { Bang, ChonGiaTri, duyNhat, Loi, TaiDang, TieuDe, type Cot } from "../components/ui";
+import { useMoLk } from "../components/ChiTietLk";
 
 interface Dong {
   kho: string; ma_kho: string; ma: string; ten: string; xuat: number | null; ton: number; lam_viec: boolean; phan_loai: string; he_so: number;
@@ -19,6 +20,7 @@ const DINH_NGHIA = [
 ];
 
 export default function ThuHoi() {
+  const moLk = useMoLk();
   const q = useQuery({ queryKey: ["thu-hoi"], queryFn: () => api<Kq>("/bao-cao/thu-hoi") });
   const [pb, setPb] = useState("");
   const [kv, setKv] = useState("");
@@ -39,18 +41,18 @@ export default function ThuHoi() {
   const khoChuaKb = duyNhat(rows.filter((r) => r.kho_chua_khai_bao).map((r) => r.kho));
 
   const cot: Cot<Dong>[] = [
-    { ten: "Kho KTV", lay: (r) => r.kho },
+    { ten: "Kho KTV", lay: (r) => r.kho, sx: (r) => r.kho },
     { ten: "Phòng ban", lay: (r) => r.phong_ban },
-    { ten: "Khu vực", lay: (r) => r.khu_vuc },
+    { ten: "Khu vực", lay: (r) => r.khu_vuc, sx: (r) => r.khu_vuc },
     { ten: "Làm việc", lay: (r) => (r.lam_viec ? "Làm" : <span className="text-danger">Nghỉ</span>) },
-    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs" },
+    { ten: "Mã", lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
     { ten: "Tên hàng", lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span> },
-    { ten: "Xuất trong kỳ", lay: (r) => fmtSo(r.xuat ?? 0, 2), so: true },
-    { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true },
+    { ten: "Xuất trong kỳ", lay: (r) => fmtSo(r.xuat ?? 0, 2), so: true, sx: (r) => r.xuat ?? 0 },
+    { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton },
     { ten: "Phân loại", lay: (r) => r.phan_loai },
     { ten: "Hệ số", lay: (r) => fmtSo(r.he_so, 2), so: true },
-    { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan), so: true },
-    { ten: "Nhóm", lay: (r) => r.nhom },
+    { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan), so: true, sx: (r) => r.ton_chuan },
+    { ten: "Nhóm", lay: (r) => r.nhom, sx: (r) => r.nhom },
     { ten: "Đánh giá", lay: (r) => r.danh_gia },
   ];
 
@@ -150,7 +152,7 @@ export default function ThuHoi() {
               </>
             )}
           </div>
-          <Bang rows={chiTiet} cot={cot} timTheo={(r) => `${r.ma} ${r.ten} ${r.kho}`} />
+          <Bang rows={chiTiet} cot={cot} timTheo={(r) => `${r.ma} ${r.ten} ${r.kho}`} onClick={(r) => moLk(r.ma)} />
         </>
       )}
     </div>

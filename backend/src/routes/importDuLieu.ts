@@ -195,6 +195,74 @@ imp.post("/khai-bao-lk", async (c) => {
   return c.json({ ok: true, so_dong: sach.length });
 });
 
+// ---------------------------------------------------------------- Ton kho tu file Excel (MISA "Tong hop ton kho")
+// Thay the tam thoi khi chua co API linh-kien-app: moi file = 1 phien ton_kho_phien nguon 'import'. Lo dau tao phien
+// 'dang_keo', cac lo ghi thang vao ton_kho (phien chua 'xong' nen bao cao chua dung), lo cuoi danh dau 'xong'.
+// Kho loai 'ktv' -> dong nguon 'ktv' (bao cao thu hoi), con lai 'kho'. Ma kho chua co -> them vao danh muc kho loai 'khac'.
+interface TonRow { ma_kho: string; ten_kho?: string; ma_hang: string; ten_hang?: string; dau_ky?: number; nhap_kho?: number; xuat_kho?: number; cuoi_ky?: number }
+
+imp.post("/ton-kho", async (c) => {
+  const body = await c.req.json<Body<TonRow> & { cuoi?: { ten_file?: string; ky_tu_ngay?: string; ky_den_ngay?: string } }>();
+  if (!LO_RE.test(body.lo ?? "")) return c.json({ error: "INVALID_LO" }, 400);
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  if (rows.length > MAX_DONG_LO) return c.json({ error: "QUA_NHIEU_DONG", toi_da: MAX_DONG_LO }, 400);
+  const loi: { dong: number; loi: string }[] = [];
+  const sach = rows.flatMap((r, i) => {
+    const ma_kho = chuoi(r.ma_kho), ma_hang = chuoi(r.ma_hang);
+    if (!ma_kho || !ma_hang) return loi.push({ dong: i, loi: "THIEU_MA" }), [];
+    return [{ ma_kho, ten_kho: chuoi(r.ten_kho), ma_hang, ten_hang: chuoi(r.ten_hang), dau_ky: so(r.dau_ky), nhap_kho: so(r.nhap_kho), xuat_kho: so(r.xuat_kho), cuoi_ky: so(r.cuoi_ky) }];
+  });
+  if (loi.length) return c.json({ error: "DONG_LOI", loi: loi.slice(0, 50) }, 400);
+
+  const db = c.env.DB;
+  const phienBan = `import-${body.lo}`;
+  const email = c.get("user").email;
+  if (body.dau) {
+    await db.batch([
+      // Phien import do dang (tab bi dong giua chung) -> xoa.
+      db.prepare("DELETE FROM ton_kho WHERE phien_id IN (SELECT id FROM ton_kho_phien WHERE nguon = 'import' AND trang_thai = 'dang_keo')"),
+      db.prepare("DELETE FROM ton_kho_phien WHERE nguon = 'import' AND trang_thai = 'dang_keo'"),
+      db.prepare("INSERT INTO ton_kho_phien (phien_ban, nguon, nguoi, bat_dau_luc) VALUES (?, 'import', ?, ?)").bind(phienBan, email, nowVN()),
+    ]);
+  }
+  const phienId = await db.prepare("SELECT id FROM ton_kho_phien WHERE phien_ban = ? AND trang_thai = 'dang_keo'").bind(phienBan).first<number>("id");
+  if (!phienId) return c.json({ error: "PHIEN_KHONG_TON_TAI" }, 400);
+  if (sach.length) {
+    await db.batch([
+      db.prepare(
+        `INSERT OR IGNORE INTO kho (ma, ten, loai, nguon)
+         SELECT json_extract(value, '$.ma_kho'), MAX(COALESCE(json_extract(value, '$.ten_kho'), json_extract(value, '$.ma_kho'))), 'khac', 'import'
+         FROM json_each(?) GROUP BY json_extract(value, '$.ma_kho')`,
+      ).bind(JSON.stringify(sach)),
+      db.prepare(
+        `INSERT INTO ton_kho (phien_id, nguon, ma_kho, ma_ktv, ma_hang, ten_hang, dau_ky, nhap_kho, xuat_kho, cuoi_ky)
+         SELECT ?1, CASE WHEN k.loai = 'ktv' THEN 'ktv' ELSE 'kho' END, j.ma_kho, k.ma_ktv, j.ma_hang, j.ten_hang, j.dau_ky, j.nhap_kho, j.xuat_kho, j.cuoi_ky
+         FROM (SELECT json_extract(value, '$.ma_kho') AS ma_kho, json_extract(value, '$.ma_hang') AS ma_hang, json_extract(value, '$.ten_hang') AS ten_hang,
+                      json_extract(value, '$.dau_ky') AS dau_ky, json_extract(value, '$.nhap_kho') AS nhap_kho, json_extract(value, '$.xuat_kho') AS xuat_kho,
+                      json_extract(value, '$.cuoi_ky') AS cuoi_ky FROM json_each(?2)) j
+         LEFT JOIN kho k ON k.ma = j.ma_kho
+         WHERE true
+         ON CONFLICT(phien_id, nguon, ma_kho, ma_hang) DO UPDATE SET dau_ky = dau_ky + excluded.dau_ky, nhap_kho = nhap_kho + excluded.nhap_kho,
+           xuat_kho = xuat_kho + excluded.xuat_kho, cuoi_ky = cuoi_ky + excluded.cuoi_ky`,
+      ).bind(phienId, JSON.stringify(sach)),
+    ]);
+  }
+  if (!body.cuoi) return c.json({ ok: true, da_nhan: sach.length });
+
+  const tu = chuoi(body.cuoi.ky_tu_ngay), den = chuoi(body.cuoi.ky_den_ngay);
+  if ((tu && !NGAY_RE.test(tu)) || (den && !NGAY_RE.test(den))) return c.json({ error: "NGAY_KHONG_HOP_LE" }, 400);
+  const dem = await db.prepare("SELECT SUM(nguon = 'kho') AS kho, SUM(nguon = 'ktv') AS ktv, COUNT(*) AS n FROM ton_kho WHERE phien_id = ?").bind(phienId).first<{ kho: number; ktv: number; n: number }>();
+  if (!dem?.n) return c.json({ error: "FILE_RONG" }, 400);
+  const luc = nowVN();
+  await db.batch([
+    db.prepare("UPDATE ton_kho_phien SET trang_thai = 'xong', ky_tu_ngay = ?, ky_den_ngay = ?, so_dong_kho = ?, so_dong_ktv = ?, xong_luc = ?, ten_file = ? WHERE id = ?")
+      .bind(tu, den, dem.kho ?? 0, dem.ktv ?? 0, luc, chuoi(body.cuoi.ten_file), phienId),
+    db.prepare("INSERT INTO import_log (loai, ten_file, nguoi, luc, so_dong, tu_ngay, den_ngay, ghi_chu) VALUES ('ton_kho', ?, ?, ?, ?, ?, ?, ?)")
+      .bind(chuoi(body.cuoi.ten_file), email, luc, dem.n, tu, den, `Kho công ty / khác: ${dem.kho ?? 0} dòng · Kho KTV: ${dem.ktv ?? 0} dòng`),
+  ]);
+  return c.json({ ok: true, so_dong: dem.n, so_dong_kho: dem.kho ?? 0, so_dong_ktv: dem.ktv ?? 0 });
+});
+
 // ---------------------------------------------------------------- Lich su import + moc du lieu
 imp.get("/lich-su", async (c) => {
   const { results } = await c.env.DB.prepare("SELECT * FROM import_log ORDER BY id DESC LIMIT 100").all();
