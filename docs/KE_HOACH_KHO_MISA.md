@@ -8,6 +8,22 @@ Viết tắt: **Hub** = app Phân tích tồn kho 3T · **LK** = linh-kien-app �
 
 ---
 
+## 0. Tiến độ
+
+| Giai đoạn | Trạng thái |
+|---|---|
+| 0. Chuẩn bị | **Xong code (2026-10-30)**. Hub: nhánh `claude/khoi-tao-du-an` (H1–H9, H11; H10 = Kế toán dùng vai trò Nhập liệu). linh-kien-app: nhánh `claude/nguon-ton-kho-hub` (L1–L8, v1.422, migration 0104). Chạy thử local 2 Worker nối nhau: nhập 10.072 dòng ở Hub → báo → LK kéo về bảng bóng / bảng thật, tổng cuối kỳ khớp 203.517,28; mốc nhập ở LK = `phien_ban` Hub; đối chiếu bắt đúng 1 dòng lệch cố ý. Chưa deploy |
+| 1. Chạy song song | Chờ deploy Hub + LK (LK `claude/api-phan-tich-ton-kho` → `claude/nguon-ton-kho-hub`) |
+| 2. Chuyển nguồn | — |
+| 3. Mở rộng (EO) | Đã đọc repo `ETX87/eo-mua-hang`: EO nhập CÙNG file "Sổ chi tiết vật tư" vào `amis_receipt` (cột "Mã phê duyệt" để khớp PO, khoá chống trùng `khoa_trung`). Hub đã lưu thêm `ma_phe_duyet`, `tk_kho`, `sl_ton` + API `/v1/misa/so-chi-tiet?chi_nhap=1`. Repo EO public, phiên này chỉ có quyền đọc |
+
+Quyết định đã chốt 2026-10-30: (1) Kế toán dùng vai trò **Nhập liệu**; (2) giữ Import file ở LK làm **dự phòng chỉ Admin**; (3) repo EO =
+`ETX87/eo-mua-hang`; (4) 3 Worker cùng tài khoản Cloudflare → Service Binding.
+
+Phát sinh khi chạy thử: mọi cột người thao tác ở LK (`app_settings.updated_by`, `thieu_lk_log.nguoi_xu_ly`, log đơn…) có FK tới `users`
+→ migration 0104 tạo tài khoản hệ thống `ton-kho-misa@he-thong.local` (Từ chối + khoá, ẩn khỏi danh sách Người dùng) đứng tên cho luồng kéo.
+LK chỉ bỏ comment Service Binding `HUB_SERVICE` SAU khi Worker `phantichtonkho` đã deploy (binding tới Worker chưa tồn tại làm deploy lỗi).
+
 ## 1. Hiện trạng (đọc từ code ngày 2026-10-30)
 
 | Dữ liệu MISA | Nhập ở đâu | Bảng | Ai đọc |

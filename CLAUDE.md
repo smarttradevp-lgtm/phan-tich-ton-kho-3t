@@ -76,6 +76,14 @@ là localhost — KHÔNG bao giờ đặt `DEV_LOGIN` ở `wrangler.jsonc` / sec
   (ca đang báo thiếu; khoá `DVBH_API_KEY`, binding `DVBH_SERVICE`). Mỗi nguồn trả `chua_cau_hinh` / `loi` / `ok` → thẻ tương ứng hiện
   "chưa kết nối" / lỗi, không làm hỏng phần còn lại. Test local không cần khoá thật: chạy 1 server giả lập trả JSON mẫu theo tài liệu
   API rồi trỏ `LINHKIEN_BASE_URL` / `DVBH_BASE_URL` + khoá giả trong `.dev.vars`.
+- **Kho dữ liệu MISA gốc** (`docs/KE_HOACH_KHO_MISA.md` — lộ trình 4 giai đoạn, `docs/API_DOI_TAC_MISA.md` — tài liệu API): app này là nơi
+  Kế toán nhập file MISA 1 lần; linh-kien-app / DVBH / EO kéo về giữ bản sao. API `routes/doiTacApi.ts` tại `/api/doi-tac/v1/misa/*`
+  (mount TRƯỚC middleware phiên; `X-API-Key` → bảng `doi_tac_api_key` băm SHA-256, quyền theo tập `ton_kho`/`so_chi_tiet`/`xuat_thang`,
+  120 req/phút/khoá trong isolate, "dùng lần cuối" ghi tối đa 1 lần/10 phút). Tồn kho chỉ phát phiên `nguon='import'` (nhập ở đây),
+  `phien_ban` = `xong_luc`; trang cuối ghi `phien_ton_da_keo` của khoá. Nhập xong file tồn → `lib/khoMisa.ts baoPhienTonMoi` gọi
+  linh-kien-app `POST /api/hub-misa/thong-bao` (X-Sync-Key `HUB_SYNC_KEY`). Công tắc `app_settings.hub_la_nguon_ton` = '1' → thôi kéo
+  tồn từ linh-kien-app (`dongBoLinhKien.chayDongBo`). Quản trị › Kho dữ liệu MISA (khoá API, công tắc), Dữ liệu hệ thống › Đối chiếu 2
+  phiên. Phía linh-kien-app: nhánh `claude/nguon-ton-kho-hub` (`lib/hubMisa.ts`, công tắc `nguon_ton_kho` file / hub_thu / hub).
 - **Frontend**: hash routing (`#/cai-dat/lk`, `#/quan-tri/du-lieu`…), menu ở `App.tsx` (`NHOM`). Bảng dùng chung `Bang` (tìm không
   dấu, bấm tiêu đề sắp xếp theo `Cot.sx`, chọn nhiều dòng; mobile → dạng thẻ theo `Cot.the`). **Lọc cột kiểu Excel**: `Cot.loc`
   = `"gt"` (chọn nhiều giá trị, theo `Cot.gt` hoặc `sx`, có số đếm tính trên dữ liệu đã lọc bởi cột khác) | `"so"` (khoảng từ/đến);
