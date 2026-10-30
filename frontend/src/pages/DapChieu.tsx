@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, fmtSo, fmtThang } from "../lib/api";
 import { taiExcel } from "../lib/excel";
-import { Bang, Chon, ChonGiaTri, duyNhat, Loi, MO_TA_XEP_LOAI, NhanXepLoai, TaiDang, TieuDe, type Cot } from "../components/ui";
+import { Bang, Chon, ChonGiaTri, cotXuat, duyNhat, giaTriXuat, Loi, MO_TA_XEP_LOAI, NhanXepLoai, TaiDang, TieuDe, type Cot } from "../components/ui";
+import { useUrlState, xoaLocTrang, coLocTrang } from "../lib/dieuHuong";
 import { useMoLk } from "../components/ChiTietLk";
 import { soGon } from "../components/bieuDo";
 
@@ -22,19 +23,21 @@ const CHE_DO: { v: CheDo; t: string }[] = [
 ];
 
 export default function DapChieu({ t5 = false }: { t5?: boolean }) {
-  const [cheDo, setCheDo] = useState<CheDo>(t5 ? "gop_rieng_ktv" : "tat_ca");
-  const [nhom, setNhom] = useState("");
-  const [dc, setDc] = useState("");
-  const [pl, setPl] = useState("");
-  const [xl, setXl] = useState("");
+  const [cheDo, setCheDo] = useUrlState<CheDo>("che_do", t5 ? "gop_rieng_ktv" : "tat_ca");
+  const [dc, setDc] = useUrlState("dap_chieu", "");
+  const [pl, setPl] = useUrlState("phan_loai", "");
+  const [xl, setXl] = useUrlState("xep_loai", "");
+  const [daLoc, setDaLoc] = useState<DapChieuDong[]>([]);
   const moLk = useMoLk();
   const q = useQuery({ queryKey: [t5 ? "t5" : "dap-chieu", cheDo], queryFn: () => api<DapChieuKq>(`/bao-cao/${t5 ? "t5" : "dap-chieu"}?che_do=${cheDo}`) });
 
   const rows = q.data?.rows ?? [];
-  const loc = useMemo(
-    () => rows.filter((r) => (!nhom || r.nhom === nhom) && (!dc || r.phan_loai_dap_chieu === dc) && (!pl || r.phan_loai === pl) && (!xl || r.xep_loai === xl)),
-    [rows, nhom, dc, pl, xl],
+  // Loc o dau trang (nhu o chon tren Sheet); loc tung cot + tim nam trong Bang -> daLoc (dung cho tong + Excel).
+  const locTrang = useMemo(
+    () => rows.filter((r) => (!dc || r.phan_loai_dap_chieu === dc) && (!pl || r.phan_loai === pl) && (!xl || r.xep_loai === xl)),
+    [rows, dc, pl, xl],
   );
+  const loc = daLoc;
   const tong = useMemo(() => {
     const s = (f: (r: DapChieuDong) => number | null) => loc.reduce((a, r) => a + (f(r) ?? 0), 0);
     return { ton: s((r) => r.ton), tb3: s((r) => r.tb3), tb6: s((r) => r.tb6), du_tru: s((r) => r.du_tru), ton_du: s((r) => r.ton_du), gt: s((r) => r.gia_tri_ton), gtdt: s((r) => r.gia_tri_du_tru), gttd: s((r) => r.gia_tri_ton_du) };
@@ -43,19 +46,20 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
   const coGia = rows.some((r) => (r.gia_tri_ton ?? 0) > 0);
 
   const cot: Cot<DapChieuDong>[] = [
-    { ten: "Kho", the: "phu" as const, lay: (r) => r.nhom, sx: (r) => r.nhom },
+    { ten: "Kho", the: "phu" as const, lay: (r) => r.nhom, sx: (r) => r.nhom, loc: "gt" },
     { ten: "Mã", the: "phu" as const, lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
-    { ten: "Tên sản phẩm", the: "tieu_de" as const, lay: (r) => <span title={r.ten} className="inline-block max-w-[260px] truncate align-bottom">{r.ten}</span> },
-    { ten: "Rủi ro", the: "nhan" as const, lay: (r) => <NhanXepLoai v={r.xep_loai} />, sx: (r) => r.xep_loai },
-    { ten: "Đắp chiếu", the: "nhan" as const, lay: (r) => r.phan_loai_dap_chieu, sx: (r) => r.phan_loai_dap_chieu },
-    { ten: "Nơi SX", the: "an" as const, lay: (r) => r.noi_san_xuat },
-    { ten: "Phân loại", lay: (r) => r.phan_loai, sx: (r) => r.phan_loai },
-    { ten: "Hệ số", the: "an" as const, lay: (r) => fmtSo(r.he_so, 2), so: true, sx: (r) => r.he_so },
-    { ten: "Tồn hiện tại", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton },
-    { ten: "TB 3 tháng", lay: (r) => fmtSo(r.tb3), so: true, sx: (r) => r.tb3 },
-    { ten: "TB 6 tháng", the: "an" as const, lay: (r) => fmtSo(r.tb6), so: true, sx: (r) => r.tb6 },
-    { ten: "SL dự trữ", lay: (r) => fmtSo(r.du_tru), so: true, sx: (r) => r.du_tru },
-    { ten: "Tồn dư", lay: (r) => <span className={r.ton_du < 0 ? "font-semibold text-danger" : ""}>{fmtSo(r.ton_du, 2)}</span>, so: true, sx: (r) => r.ton_du },
+    { ten: "Tên sản phẩm", the: "tieu_de" as const, lay: (r) => <span title={r.ten} className="inline-block max-w-[260px] truncate align-bottom">{r.ten}</span>, sx: (r) => r.ten },
+    { ten: "Rủi ro", the: "nhan" as const, lay: (r) => <NhanXepLoai v={r.xep_loai} />, sx: (r) => r.xep_loai, loc: "gt" },
+    { ten: "Đắp chiếu", the: "nhan" as const, lay: (r) => r.phan_loai_dap_chieu, sx: (r) => r.phan_loai_dap_chieu, loc: "gt" },
+    { ten: "Nơi SX", the: "an" as const, lay: (r) => r.noi_san_xuat, gt: (r) => r.noi_san_xuat, loc: "gt" },
+    { ten: "Ngành", the: "an" as const, lay: (r) => r.nganh, gt: (r) => r.nganh, loc: "gt" },
+    { ten: "Phân loại", lay: (r) => r.phan_loai, sx: (r) => r.phan_loai, loc: "gt" },
+    { ten: "Hệ số", the: "an" as const, lay: (r) => fmtSo(r.he_so, 2), so: true, sx: (r) => r.he_so, loc: "so" },
+    { ten: "Tồn hiện tại", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton, loc: "so" },
+    { ten: "TB 3 tháng", lay: (r) => fmtSo(r.tb3), so: true, sx: (r) => r.tb3, loc: "so" },
+    { ten: "TB 6 tháng", the: "an" as const, lay: (r) => fmtSo(r.tb6), so: true, sx: (r) => r.tb6, loc: "so" },
+    { ten: "SL dự trữ", lay: (r) => fmtSo(r.du_tru), so: true, sx: (r) => r.du_tru, loc: "so" },
+    { ten: "Tồn dư", lay: (r) => <span className={r.ton_du < 0 ? "font-semibold text-danger" : ""}>{fmtSo(r.ton_du, 2)}</span>, so: true, sx: (r) => r.ton_du, loc: "so" },
     {
       ten: "Giá nhập", the: "an" as const,
       lay: (r) =>
@@ -66,18 +70,19 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
         ),
       so: true,
       sx: (r) => r.gia_nhap,
+      loc: "so",
     },
-    { ten: "GT tồn", lay: (r) => fmtSo(r.gia_tri_ton), so: true, sx: (r) => r.gia_tri_ton },
-    { ten: "GT dự trữ", the: "an" as const, lay: (r) => fmtSo(r.gia_tri_du_tru), so: true, sx: (r) => r.gia_tri_du_tru },
-    { ten: "GT tồn dư", the: "an" as const, lay: (r) => fmtSo(r.gia_tri_ton_du), so: true, sx: (r) => r.gia_tri_ton_du },
-    ...thang.map((t, i) => ({ ten: `${i === 0 ? "N " : `N-${i} `}(${fmtThang(t)})`, the: "an" as const, lay: (r: DapChieuDong) => fmtSo(r.xuat[i] || null, 2), so: true, sx: (r: DapChieuDong) => r.xuat[i] })),
+    { ten: "GT tồn", lay: (r) => fmtSo(r.gia_tri_ton), so: true, sx: (r) => r.gia_tri_ton, loc: "so" },
+    { ten: "GT dự trữ", the: "an" as const, lay: (r) => fmtSo(r.gia_tri_du_tru), so: true, sx: (r) => r.gia_tri_du_tru, loc: "so" },
+    { ten: "GT tồn dư", the: "an" as const, lay: (r) => fmtSo(r.gia_tri_ton_du), so: true, sx: (r) => r.gia_tri_ton_du, loc: "so" },
+    ...thang.map((t, i) => ({ ten: `${i === 0 ? "N " : `N-${i} `}(${fmtThang(t)})`, the: "an" as const, lay: (r: DapChieuDong) => fmtSo(r.xuat[i] || null, 2), so: true, sx: (r: DapChieuDong) => r.xuat[i], loc: "so" as const })),
   ];
 
   const xuatExcel = () =>
     taiExcel(
       `${t5 ? "canh-bao-t5" : "dap-chieu"}-${q.data?.thang_n}.xlsx`,
-      cot.map((c) => c.ten),
-      loc.map((r) => [r.nhom, r.ma, r.ten, r.xep_loai, r.phan_loai_dap_chieu, r.noi_san_xuat, r.phan_loai, r.he_so, r.ton, r.tb3, r.tb6, r.du_tru, r.ton_du, r.gia_nhap, r.gia_tri_ton, r.gia_tri_du_tru, r.gia_tri_ton_du, ...r.xuat]),
+      cotXuat(cot).map((c) => c.ten),
+      loc.map((r) => cotXuat(cot).map((c) => giaTriXuat(c, r))),
     );
 
   return (
@@ -92,7 +97,18 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
             </>
           )
         }
-        phai={<button className="btn" onClick={xuatExcel} disabled={!loc.length}>⬇ Tải Excel ({loc.length.toLocaleString("vi-VN")} dòng)</button>}
+        phai={
+          <>
+            {coLocTrang() && (
+              <button className="btn" onClick={xoaLocTrang} title="Bỏ mọi bộ lọc, tìm kiếm, sắp xếp của trang">
+                ✕ Xoá lọc
+              </button>
+            )}
+            <button className="btn" onClick={xuatExcel} disabled={!loc.length}>
+              ⬇ Tải Excel ({loc.length.toLocaleString("vi-VN")} dòng)
+            </button>
+          </>
+        }
       />
       {!t5 && rows.length > 0 && (
         <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -111,8 +127,7 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
         </div>
       )}
       <div className="loc-bar">
-        <Chon nhan="Chọn kho" giaTri={cheDo} dat={(v) => (setCheDo(v), setNhom(""))} luaChon={CHE_DO} />
-        <ChonGiaTri nhan="Kho" giaTri={nhom} dat={setNhom} ds={duyNhat(rows.map((r) => r.nhom))} />
+        <Chon nhan="Chọn kho" giaTri={cheDo} dat={setCheDo} luaChon={CHE_DO} />
         <ChonGiaTri nhan="Đắp chiếu" giaTri={dc} dat={setDc} ds={duyNhat(rows.map((r) => r.phan_loai_dap_chieu))} />
         <ChonGiaTri nhan="Phân loại LK" giaTri={pl} dat={setPl} ds={duyNhat(rows.map((r) => r.phan_loai))} />
         {!t5 && <Chon nhan="Xếp loại" giaTri={xl} dat={setXl} luaChon={[{ v: "", t: "Tất cả" }, ...Object.entries(MO_TA_XEP_LOAI).map(([v, t]) => ({ v, t: `${v}: ${t}` }))]} />}
@@ -123,8 +138,10 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
         <Loi loi={q.error} />
       ) : (
         <Bang
-          rows={loc}
+          rows={locTrang}
           cot={cot}
+          idUrl="bang"
+          onLoc={setDaLoc}
           timTheo={(r) => `${r.ma} ${r.ten}`}
           onClick={(r) => moLk(r.ma)}
           tongThe={

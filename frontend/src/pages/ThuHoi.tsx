@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
-import { Bang, ChonGiaTri, duyNhat, Loi, TaiDang, TieuDe, type Cot } from "../components/ui";
+import { Bang, ChonGiaTri, cotXuat, duyNhat, giaTriXuat, Loi, TaiDang, TieuDe, type Cot } from "../components/ui";
+import { coLocTrang, useUrlState, xoaLocTrang } from "../lib/dieuHuong";
 import { useMoLk } from "../components/ChiTietLk";
 
 interface Dong {
@@ -22,9 +23,10 @@ const DINH_NGHIA = [
 export default function ThuHoi() {
   const moLk = useMoLk();
   const q = useQuery({ queryKey: ["thu-hoi"], queryFn: () => api<Kq>("/bao-cao/thu-hoi") });
-  const [pb, setPb] = useState("");
-  const [kv, setKv] = useState("");
-  const [chon, setChon] = useState<{ pl?: string; nhom?: string }>({});
+  const [pb, setPb] = useUrlState("bo_phan", "");
+  const [kv, setKv] = useUrlState("khu_vuc", "");
+  const [chon, setChon] = useUrlState<{ pl?: string; nhom?: string }>("o", {});
+  const [daLoc, setDaLoc] = useState<Dong[]>([]);
   const rows = q.data?.rows ?? [];
   const loc = useMemo(() => rows.filter((r) => (!pb || r.phong_ban === pb) && (!kv || r.khu_vuc === kv)), [rows, pb, kv]);
   const maTran = useMemo(() => {
@@ -41,19 +43,19 @@ export default function ThuHoi() {
   const khoChuaKb = duyNhat(rows.filter((r) => r.kho_chua_khai_bao).map((r) => r.kho));
 
   const cot: Cot<Dong>[] = [
-    { ten: "Kho KTV", the: "phu" as const, lay: (r) => r.kho, sx: (r) => r.kho },
-    { ten: "Phòng ban", the: "an" as const, lay: (r) => r.phong_ban },
-    { ten: "Khu vực", the: "phu" as const, lay: (r) => r.khu_vuc, sx: (r) => r.khu_vuc },
-    { ten: "Làm việc", lay: (r) => (r.lam_viec ? "Làm" : <span className="text-danger">Nghỉ</span>) },
+    { ten: "Kho KTV", the: "phu" as const, lay: (r) => r.kho, sx: (r) => r.kho, loc: "gt" },
+    { ten: "Bộ phận", the: "an" as const, lay: (r) => r.phong_ban, sx: (r) => r.phong_ban },
+    { ten: "Khu vực", the: "phu" as const, lay: (r) => r.khu_vuc, sx: (r) => r.khu_vuc, loc: "gt" },
+    { ten: "Làm việc", lay: (r) => (r.lam_viec ? "Làm" : <span className="text-danger">Nghỉ</span>), gt: (r) => (r.lam_viec ? "Làm" : "Nghỉ"), loc: "gt" },
     { ten: "Mã", the: "phu" as const, lay: (r) => r.ma, cls: "font-mono text-xs text-primary", sx: (r) => r.ma },
-    { ten: "Tên hàng", the: "tieu_de" as const, lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span> },
-    { ten: "Xuất trong kỳ", lay: (r) => fmtSo(r.xuat ?? 0, 2), so: true, sx: (r) => r.xuat ?? 0 },
-    { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton },
-    { ten: "Phân loại", the: "an" as const, lay: (r) => r.phan_loai },
-    { ten: "Hệ số", the: "an" as const, lay: (r) => fmtSo(r.he_so, 2), so: true },
-    { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan), so: true, sx: (r) => r.ton_chuan },
-    { ten: "Nhóm", the: "nhan" as const, lay: (r) => r.nhom, sx: (r) => r.nhom },
-    { ten: "Đánh giá", lay: (r) => r.danh_gia },
+    { ten: "Tên hàng", the: "tieu_de" as const, lay: (r) => <span title={r.ten} className="inline-block max-w-[240px] truncate align-bottom">{r.ten}</span>, sx: (r) => r.ten },
+    { ten: "Xuất trong kỳ", lay: (r) => fmtSo(r.xuat ?? 0, 2), so: true, sx: (r) => r.xuat ?? 0, loc: "so" },
+    { ten: "Tồn", lay: (r) => fmtSo(r.ton, 2), so: true, sx: (r) => r.ton, loc: "so" },
+    { ten: "Phân loại", the: "an" as const, lay: (r) => r.phan_loai, sx: (r) => r.phan_loai, loc: "gt" },
+    { ten: "Hệ số", the: "an" as const, lay: (r) => fmtSo(r.he_so, 2), so: true, sx: (r) => r.he_so },
+    { ten: "Tồn chuẩn", lay: (r) => fmtSo(r.ton_chuan), so: true, sx: (r) => r.ton_chuan, loc: "so" },
+    { ten: "Nhóm", the: "nhan" as const, lay: (r) => r.nhom, sx: (r) => r.nhom, loc: "gt" },
+    { ten: "Đánh giá", lay: (r) => r.danh_gia, gt: (r) => r.danh_gia, loc: "gt" },
   ];
 
   return (
@@ -68,19 +70,26 @@ export default function ThuHoi() {
           )
         }
         phai={
-          <button
-            className="btn"
-            disabled={!chiTiet.length}
-            onClick={() =>
-              taiExcel(
-                "thu-hoi-dvbh.xlsx",
-                cot.map((c) => c.ten),
-                chiTiet.map((r) => [r.kho, r.phong_ban, r.khu_vuc, r.lam_viec ? "Làm" : "Nghỉ", r.ma, r.ten, r.xuat ?? 0, r.ton, r.phan_loai, r.he_so, r.ton_chuan, r.nhom, r.danh_gia]),
-              )
-            }
-          >
-            ⬇ Tải Excel
-          </button>
+          <>
+            {coLocTrang() && (
+              <button className="btn" onClick={xoaLocTrang}>
+                ✕ Xoá lọc
+              </button>
+            )}
+            <button
+              className="btn"
+              disabled={!daLoc.length}
+              onClick={() =>
+                taiExcel(
+                  "thu-hoi-dvbh.xlsx",
+                  cotXuat(cot).map((c) => c.ten),
+                  daLoc.map((r) => cotXuat(cot).map((c) => giaTriXuat(c, r))),
+                )
+              }
+            >
+              ⬇ Tải Excel ({daLoc.length.toLocaleString("vi-VN")} dòng)
+            </button>
+          </>
         }
       />
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -152,7 +161,7 @@ export default function ThuHoi() {
               </>
             )}
           </div>
-          <Bang rows={chiTiet} cot={cot} timTheo={(r) => `${r.ma} ${r.ten} ${r.kho}`} onClick={(r) => moLk(r.ma)} />
+          <Bang rows={chiTiet} cot={cot} idUrl="bang" onLoc={setDaLoc} timTheo={(r) => `${r.ma} ${r.ten} ${r.kho}`} onClick={(r) => moLk(r.ma)} />
         </>
       )}
     </div>

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "./lib/api";
 import { Icon, TaiDang, type IconTen } from "./components/ui";
 import { ChiTietLkProvider } from "./components/ChiTietLk";
+import { khoiPhucLoc, trangHienTai } from "./lib/dieuHuong";
 
 const TongQuan = lazy(() => import("./pages/TongQuan"));
 const DapChieu = lazy(() => import("./pages/DapChieu"));
@@ -56,12 +57,22 @@ const NHOM: { t: string; ds: Trang[] }[] = [
 ];
 const TEN_VAI_TRO: Record<VaiTro, string> = { admin: "Admin", nhap_lieu: "Nhập liệu", xem: "Chỉ xem" };
 
-const docHash = () => location.hash.replace(/^#\/?/, "") || "tong-quan";
+const docHash = () => {
+  khoiPhucLoc();
+  return trangHienTai();
+};
 
 export default function App() {
   const qc = useQueryClient();
   const me = useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/auth/me"), retry: false });
   const [trang, setTrang] = useState(docHash);
+  // "Xoá lọc" -> tang phien ban de dung lai trang voi bo loc mac dinh.
+  const [phienBan, setPhienBan] = useState(0);
+  useEffect(() => {
+    const f = () => setPhienBan((v) => v + 1);
+    addEventListener("xoa-loc", f);
+    return () => removeEventListener("xoa-loc", f);
+  }, []);
   const [moMenu, setMoMenu] = useState(false);
   useEffect(() => {
     const f = () => (setTrang(docHash()), setMoMenu(false));
@@ -158,7 +169,7 @@ export default function App() {
         <div className="flex min-w-0 flex-1 flex-col">
           <ThanhTren moMenu={() => setMoMenu(true)} tieuDe={tatCa.find((t) => t.k === hienTai)?.t ?? ""} />
           <main className="min-w-0 flex-1 px-3 pb-24 pt-4 md:p-6">
-            <Suspense fallback={<TaiDang />}>
+            <Suspense key={`${hienTai}-${phienBan}`} fallback={<TaiDang />}>
               {hienTai === "tong-quan" && <TongQuan />}
               {hienTai === "dap-chieu" && <DapChieu />}
               {hienTai === "t5" && <DapChieu t5 />}

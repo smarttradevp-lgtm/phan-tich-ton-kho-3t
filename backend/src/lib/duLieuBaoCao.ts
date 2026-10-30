@@ -58,7 +58,7 @@ function loaiKho(kho: Map<string, KhoRow>, ma: string, macDinh: KhoRow["loai"] =
 // Chuan hoa ten phan loai de so khop (khong phan biet hoa/thuong, khoang trang thua).
 export const khoaPhanLoai = (s: string) => s.normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
 
-export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk & { leadtime?: number | null; ten_dm?: string | null }>> {
+export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk & { leadtime?: number | null; doi_tac?: string | null; nhom_tuong_duong?: string | null }>> {
   // Phan loai khai bao viet khac hoa/thuong (vd "thuộc diện cắt mã") quy ve ten chuan trong phan_loai_lk.
   const tenChuan = new Map(
     (await db.prepare("SELECT ten FROM phan_loai_lk").all<{ ten: string }>()).results.map((p) => [khoaPhanLoai(p.ten), p.ten]),
@@ -66,12 +66,12 @@ export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk 
   const { results } = await db
     .prepare(
       `SELECT m.ma, COALESCE(l.ten, k.ten) AS ten, k.phan_loai, k.nganh, k.noi_san_xuat, k.he_so_du_tru, k.leadtime,
-              k.gia_nhap, l.gia_du_phong
+              k.doi_tac, k.nhom_tuong_duong, k.gia_nhap, l.gia_du_phong
        FROM (SELECT ma FROM lk_khai_bao UNION SELECT ma FROM linh_kien) m
        LEFT JOIN lk_khai_bao k ON k.ma = m.ma
        LEFT JOIN linh_kien l ON l.ma = m.ma`,
     )
-    .all<{ ma: string; ten: string | null; phan_loai: string | null; nganh: string | null; noi_san_xuat: string | null; he_so_du_tru: number | null; leadtime: number | null; gia_nhap: number | null; gia_du_phong: number | null }>();
+    .all<{ ma: string; ten: string | null; phan_loai: string | null; nganh: string | null; noi_san_xuat: string | null; he_so_du_tru: number | null; leadtime: number | null; doi_tac: string | null; nhom_tuong_duong: string | null; gia_nhap: number | null; gia_du_phong: number | null }>();
   return new Map(
     results.map((r) => {
       const nguon: "nhap" | "du_phong" | "khong_co" = r.gia_nhap != null ? "nhap" : (r.gia_du_phong ?? 0) > 0 ? "du_phong" : "khong_co";
@@ -84,6 +84,8 @@ export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk 
           noi_san_xuat: r.noi_san_xuat,
           he_so_du_tru: r.he_so_du_tru,
           leadtime: r.leadtime,
+          doi_tac: r.doi_tac,
+          nhom_tuong_duong: r.nhom_tuong_duong,
           gia_nhap: nguon === "nhap" ? r.gia_nhap : nguon === "du_phong" ? r.gia_du_phong : 0,
           gia_nhap_nguon: nguon,
         },
@@ -239,9 +241,23 @@ export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiK
     const ve = dangVe.results.filter((v) => v.ma_hang === d.ma && (d.ma_kho == null || v.ma_kho == null || v.ma_kho === d.ma_kho)).reduce((s, v) => s + v.sl, 0);
     return { ...d, ten: kb?.ten || d.ten, leadtime: kb?.leadtime, he_so_nk: kb?.he_so_du_tru, hang_dang_ve: ve };
   });
+  // SL du tru tieu chuan + ton du uoc tinh lay tu bao cao dap chieu (Sheet '0.2' cot Q, R): theo tung kho -> che do "tat_ca"
+  // (nhom = ten kho; kho KTV gop "Kho KTV chung" nen dong kho KTV rieng khong co); gop chung -> gop kho cong ty / ca KTV.
+  const dc = await baoCaoDapChieu(db, opts.gop ? (opts.loaiKho === "cong_ty" ? "gop_khong_ktv" : "gop_chung") : "tat_ca");
+  const dcMap = new Map(dc.rows.map((d) => [opts.gop ? d.ma : `${d.nhom}\u0000${d.ma}`, d]));
   const rows = tinhLeadtime(dauVao, ts).map((r, i) => {
     const kb = khaiBao.get(r.ma);
-    return { ...r, ma_kho: dauVao[i].ma_kho, phan_loai: kb?.phan_loai || CHUA_KHAI_BAO, dvbh_so_ca: dvbhMap.get(r.ma) ?? 0 };
+    const d = dcMap.get(opts.gop ? r.ma : `${r.kho}\u0000${r.ma}`);
+    return {
+      ...r,
+      ma_kho: dauVao[i].ma_kho,
+      phan_loai: kb?.phan_loai || CHUA_KHAI_BAO,
+      nhom_tuong_duong: kb?.nhom_tuong_duong ?? null,
+      doi_tac: kb?.doi_tac ?? null,
+      du_tru: d?.du_tru ?? null,
+      ton_du: d?.ton_du ?? null,
+      dvbh_so_ca: dvbhMap.get(r.ma) ?? 0,
+    };
   });
   return {
     ngay_moc: ngayMoc,

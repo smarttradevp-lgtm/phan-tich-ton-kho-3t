@@ -13,9 +13,9 @@ export default function NhatKy() {
   const rows = q.data!.rows.filter((r) => !loai || r.loai === loai);
   const cot: Cot<Dong>[] = [
     { ten: "Lúc", the: "phu" as const, lay: (r) => r.luc, sx: (r) => r.luc },
-    { ten: "Người", the: "phu" as const, lay: (r) => r.nguoi, sx: (r) => r.nguoi },
+    { ten: "Người", the: "phu" as const, lay: (r) => r.nguoi, sx: (r) => r.nguoi, loc: "gt" },
     { ten: "Loại", the: "nhan" as const, lay: (r) => <span className={`badge ${r.loai === "import" ? "bg-primary-soft text-primary" : "bg-slate-100 text-slate-700"}`}>{r.loai === "import" ? "Import" : "Thao tác"}</span> },
-    { ten: "Hành động", the: "tieu_de" as const, lay: (r) => <span className="font-medium">{r.hanh_dong}</span>, sx: (r) => r.hanh_dong },
+    { ten: "Hành động", the: "tieu_de" as const, lay: (r) => <span className="font-medium">{r.hanh_dong}</span>, sx: (r) => r.hanh_dong, loc: "gt" },
     { ten: "Chi tiết", lay: (r) => <span className="inline-block max-w-[520px] truncate align-bottom text-xs text-ink-soft" title={r.chi_tiet ?? ""}>{r.chi_tiet}</span> },
   ];
   return (
@@ -24,7 +24,7 @@ export default function NhatKy() {
       <div className="mb-3">
         <Chon nhan="Loại" giaTri={loai} dat={setLoai} luaChon={[{ v: "", t: "Tất cả" }, { v: "thao_tac", t: "Thao tác" }, { v: "import", t: "Import" }]} />
       </div>
-      <Bang rows={rows} cot={cot} timTheo={(r) => `${r.nguoi} ${r.hanh_dong} ${r.chi_tiet}`} />
+      <Bang rows={rows} cot={cot} idUrl="bang" timTheo={(r) => `${r.nguoi} ${r.hanh_dong} ${r.chi_tiet}`} />
     </div>
   );
 }

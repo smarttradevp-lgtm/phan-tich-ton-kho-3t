@@ -108,7 +108,7 @@ export default function NguoiDung({ toi }: { toi: string }) {
       {[sua.error, dangXuat.error, xoa.error].filter(Boolean).map((e, i) => (
         <Loi key={i} loi={e} />
       ))}
-      <Bang rows={rows} cot={cot} timTheo={(u) => `${u.email} ${u.ten ?? ""}`} />
+      <Bang rows={rows} cot={cot} idUrl="bang" timTheo={(u) => `${u.email} ${u.ten ?? ""}`} />
       <Modal
         mo={!!them}
         dong={() => setThem(null)}

@@ -4,6 +4,7 @@ import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
 import { Bang, Chon, ChonGiaTri, duyNhat, Icon, Loi, Modal, TaiDang, ThongBao, TieuDe, type Cot } from "../components/ui";
 import { useMoLk } from "../components/ChiTietLk";
+import { useUrlState } from "../lib/dieuHuong";
 
 const TIEU_DE: Record<string, { ten: string; moTa: string }> = {
   lk: { ten: "Khai báo linh kiện", moTa: "Phân loại, ngành, hệ số dự trữ, leadtime, giá nhập từng mã. Ô trống = dùng mặc định ở Tham số." },
@@ -65,9 +66,10 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
   const q = useQuery({ queryKey: ["cd-lk"], queryFn: () => api<{ rows: LkRow[] }>("/cai-dat/lk") });
   const pl = useQuery({ queryKey: ["cd-phan-loai"], queryFn: () => api<{ phan_loai: { ten: string }[] }>("/cai-dat/phan-loai") });
   const dsPhanLoai = (pl.data?.phan_loai ?? []).map((p) => p.ten);
-  const [loc, setLoc] = useState<LocLk>("");
-  const [phanLoai, setPhanLoai] = useState("");
-  const [nganh, setNganh] = useState("");
+  const [loc, setLoc] = useUrlState<LocLk>("loc", "");
+  const [phanLoai, setPhanLoai] = useUrlState("phan_loai", "");
+  const [nganh, setNganh] = useUrlState("nganh", "");
+  const [daLoc, setDaLoc] = useState<LkRow[]>([]);
   const [sua, setSua] = useState<LkRow | null>(null);
   const [chon, setChon] = useState<Set<string>>(new Set());
   const [hangLoat, setHangLoat] = useState<Record<string, string | number | null> | null>(null);
@@ -120,12 +122,14 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
       the: (["doi_tac", "nhom_tuong_duong", "noi_san_xuat"].includes(f.k) ? "an" : undefined) as Cot<LkRow>["the"],
       so: f.so,
       sx: (r: LkRow) => r[f.k] as string | number | null,
+      loc: (f.so ? "so" : "gt") as Cot<LkRow>["loc"],
       lay: (r: LkRow) => (f.so ? fmtSo(r[f.k] as number | null, 2) : (r[f.k] as string | null) ?? <span className="text-ink-soft">—</span>),
     })),
     {
       ten: "Giá nhập",
       so: true,
       sx: (r) => r.gia_nhap ?? r.gia_du_phong,
+      loc: "so",
       lay: (r) =>
         r.gia_nhap != null ? (
           <span title={`Nguồn: ${NGUON_GIA[r.gia_nhap_nguon ?? ""] ?? "—"}`}>{fmtSo(r.gia_nhap)}</span>
@@ -158,7 +162,7 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
     taiExcel(
       "khai-bao-linh-kien.xlsx",
       ["Mã sản phẩm", "Tên sản phẩm", ...TRUONG_LK.map((f) => f.t), "Giá dự phòng", "Nguồn giá nhập", "Người cập nhật", "Ngày cập nhật"],
-      hien.map((r) => [r.ma, r.ten, ...TRUONG_LK.map((f) => r[f.k] as string | number | null), r.gia_du_phong, NGUON_GIA[r.gia_nhap_nguon ?? ""] ?? null, r.nguoi_cap_nhat, r.ngay_cap_nhat]),
+      daLoc.map((r) => [r.ma, r.ten, ...TRUONG_LK.map((f) => r[f.k] as string | number | null), r.gia_du_phong, NGUON_GIA[r.gia_nhap_nguon ?? ""] ?? null, r.nguoi_cap_nhat, r.ngay_cap_nhat]),
     );
   if (q.isLoading) return <TaiDang />;
   if (q.error) return <Loi loi={q.error} />;
@@ -182,7 +186,7 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
         <ChonGiaTri nhan="Phân loại" giaTri={phanLoai} dat={setPhanLoai} ds={duyNhat(rows.map((r) => r.phan_loai))} />
         <ChonGiaTri nhan="Ngành" giaTri={nganh} dat={setNganh} ds={duyNhat(rows.map((r) => r.nganh))} />
         <button className="btn col-span-2 justify-center sm:col-span-1 sm:ml-auto" onClick={xuatExcel}>
-          <Icon ten="tai-xuong" /> Tải Excel ({hien.length.toLocaleString("vi-VN")})
+          <Icon ten="tai-xuong" /> Tải Excel ({daLoc.length.toLocaleString("vi-VN")})
         </button>
       </div>
       {coTheGhi && chon.size > 0 && (
@@ -199,6 +203,8 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
       <Bang
         rows={hien}
         cot={cot}
+        idUrl="bang"
+        onLoc={setDaLoc}
         timTheo={(r) => `${r.ma} ${r.ten ?? ""}`}
         onClick={coTheGhi ? setSua : (r) => moLk(r.ma)}
         chon={coTheGhi ? chon : undefined}
@@ -483,7 +489,7 @@ const NGUON_KHO: Record<string, string> = { linhkien: "linh-kien-app", tu_khai_b
 function Kho({ coTheGhi }: { coTheGhi: boolean }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["cd-kho"], queryFn: () => api<{ rows: KhoRow[] }>("/cai-dat/kho") });
-  const [loai, setLoai] = useState("");
+  const [loai, setLoai] = useUrlState("loai", "");
   const [chon, setChon] = useState<Set<string>>(new Set());
   const [loaiMoi, setLoaiMoi] = useState("cong_ty");
   const [dangDoi, setDangDoi] = useState("");
@@ -506,6 +512,8 @@ function Kho({ coTheGhi }: { coTheGhi: boolean }) {
     {
       ten: "Loại",
       sx: (r) => r.loai,
+      gt: (r) => LOAI_KHO.find((l) => l.v === r.loai)?.t ?? r.loai,
+      loc: "gt",
       lay: (r) => (
         <select className="input" disabled={!coTheGhi} value={r.loai} onClick={(e) => e.stopPropagation()} onChange={(e) => luu.mutate({ ma: r.ma, loai: e.target.value })}>
           {LOAI_KHO.map((l) => (
@@ -518,6 +526,8 @@ function Kho({ coTheGhi }: { coTheGhi: boolean }) {
     },
     {
       ten: "Làm việc",
+      gt: (r) => (r.loai !== "ktv" ? null : (r.lam_viec_tay ?? r.lam_viec) == null ? "Chưa rõ" : (r.lam_viec_tay ?? r.lam_viec) ? "Làm" : "Nghỉ"),
+      loc: "gt",
       lay: (r) =>
         r.loai !== "ktv" ? (
           ""
@@ -532,7 +542,7 @@ function Kho({ coTheGhi }: { coTheGhi: boolean }) {
     { ten: "Phòng ban", lay: (r) => (r.loai !== "ktv" ? "" : <ODieuChinh coTheGhi={coTheGhi} giaTri={r.phong_ban_tay} dongBo={r.phong_ban} luu={(v) => luu.mutate({ ma: r.ma, phong_ban_tay: v })} />) },
     { ten: "Khu vực", lay: (r) => (r.loai !== "ktv" ? "" : <ODieuChinh coTheGhi={coTheGhi} giaTri={r.khu_vuc_tay} dongBo={r.khu_vuc} luu={(v) => luu.mutate({ ma: r.ma, khu_vuc_tay: v })} />) },
     { ten: "Tên khác (khớp file)", the: "an" as const, lay: (r) => <span className="text-xs text-ink-soft">{r.ten_khac.join("; ")}</span> },
-    { ten: "Nguồn", the: "phu" as const, lay: (r) => <span className="text-xs text-ink-soft">{NGUON_KHO[r.nguon] ?? r.nguon}</span>, sx: (r) => r.nguon },
+    { ten: "Nguồn", the: "phu" as const, lay: (r) => <span className="text-xs text-ink-soft">{NGUON_KHO[r.nguon] ?? r.nguon}</span>, sx: (r) => r.nguon, gt: (r) => NGUON_KHO[r.nguon] ?? r.nguon, loc: "gt" },
   ];
   if (q.isLoading) return <TaiDang />;
   const moi = tatCa.filter((r) => r.loai === "khac" && r.nguon === "import").length;
@@ -584,7 +594,7 @@ function Kho({ coTheGhi }: { coTheGhi: boolean }) {
           </button>
         </div>
       )}
-      <Bang rows={rows} cot={cot} timTheo={(r) => `${r.ma} ${r.ten} ${r.ten_khac.join(" ")}`} chon={coTheGhi ? chon : undefined} datChon={setChon} khoa={(r) => r.ma} />
+      <Bang rows={rows} cot={cot} idUrl="bang" timTheo={(r) => `${r.ma} ${r.ten} ${r.ten_khac.join(" ")}`} chon={coTheGhi ? chon : undefined} datChon={setChon} khoa={(r) => r.ma} />
     </div>
   );
 }

@@ -66,7 +66,12 @@ là localhost — KHÔNG bao giờ đặt `DEV_LOGIN` ở `wrangler.jsonc` / sec
 - **Tổng quan** (`GET /bao-cao/tong-quan`) tính lại cả 3 báo cáo mỗi lần gọi + kiểm tra chất lượng dữ liệu; chi tiết 1 LK
   (`GET /bao-cao/lk/:ma`) dùng chung drawer `components/ChiTietLk.tsx` (`useMoLk()`) cho mọi bảng báo cáo.
 - **Frontend**: hash routing (`#/cai-dat/lk`, `#/quan-tri/du-lieu`…), menu ở `App.tsx` (`NHOM`). Bảng dùng chung `Bang` (tìm không
-  dấu, bấm tiêu đề sắp xếp theo `Cot.sx`, chọn nhiều dòng). Biểu đồ tự dựng `components/bieuDo.tsx` (1 chuỗi = màu primary, đỏ chỉ
+  dấu, bấm tiêu đề sắp xếp theo `Cot.sx`, chọn nhiều dòng; mobile → dạng thẻ theo `Cot.the`). **Lọc cột kiểu Excel**: `Cot.loc`
+  = `"gt"` (chọn nhiều giá trị, theo `Cot.gt` hoặc `sx`, có số đếm tính trên dữ liệu đã lọc bởi cột khác) | `"so"` (khoảng từ/đến);
+  key lọc = `Cot.ten` nên giữ tên cột ổn định. Tổng / Excel của trang phải lấy danh sách SAU lọc qua `onLoc` (Excel dùng
+  `cotXuat`/`giaTriXuat`). **Bộ lọc nằm trên URL** (`lib/dieuHuong.ts` `useUrlState`, hash `#/trang?khoa=...`): mọi bộ lọc đầu
+  trang + tìm / sắp xếp / lọc cột của `Bang` có `idUrl` → gửi link giữ nguyên cách xem; lưu thêm localStorage theo trang để bấm
+  menu quay lại vẫn còn; "Xoá lọc" = `xoaLocTrang()` (dựng lại trang). Biểu đồ tự dựng `components/bieuDo.tsx` (1 chuỗi = màu primary, đỏ chỉ
   cho mức nguy cơ). Chưa có giá nhập lẫn dự phòng → Tổng quan / Đắp chiếu tự hiển thị theo số lượng thay vì giá trị.
 - **Nguồn chưa có API**: `dvbh_thieu_lk` (ca DVBH báo thiếu) và `hang_dang_ve` (EO Mua hàng) đã có bảng + đã nối vào báo cáo
   leadtime, nhưng chưa có code đồng bộ.
