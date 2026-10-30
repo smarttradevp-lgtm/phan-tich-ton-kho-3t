@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../types";
 import { canVaiTro } from "../middleware/session";
 import { nowVN } from "../lib/vnTime";
+import { baoPhienTonMoi } from "../lib/khoMisa";
 
 // Import du lieu tu file (trinh duyet doc Excel MISA, gui JSON theo LO <= 1000 dong). Moi import nhieu lo dung bang tam
 // + lo cuoi thay du lieu that trong 1 batch -> dung giua chung khong mat du lieu cu, import lai khong cong trung.
@@ -25,6 +26,7 @@ const chuoi = (v: unknown) => (v == null ? null : String(v).trim() || null);
 interface SctRow {
   ma_kho: string; ten_kho?: string; ma_hang: string; ten_hang?: string; ngay_hach_toan: string; ngay_chung_tu?: string;
   so_chung_tu?: string; dvt?: string; dien_giai?: string; sl_nhap?: number; sl_xuat?: number; tk_doi_ung?: string;
+  tk_kho?: string; sl_ton?: number | null; ma_phe_duyet?: string;
 }
 
 imp.post("/so-chi-tiet", async (c) => {
@@ -41,6 +43,7 @@ imp.post("/so-chi-tiet", async (c) => {
       ma_kho, ten_kho: chuoi(r.ten_kho), ma_hang, ten_hang: chuoi(r.ten_hang), ngay_hach_toan: ngay,
       ngay_chung_tu: chuoi(r.ngay_chung_tu), so_chung_tu: chuoi(r.so_chung_tu), dvt: chuoi(r.dvt), dien_giai: chuoi(r.dien_giai),
       sl_nhap: so(r.sl_nhap), sl_xuat: so(r.sl_xuat), tk_doi_ung: chuoi(r.tk_doi_ung),
+      tk_kho: chuoi(r.tk_kho), sl_ton: r.sl_ton == null ? null : so(r.sl_ton), ma_phe_duyet: chuoi(r.ma_phe_duyet),
     }];
   });
   if (loi.length) return c.json({ error: "DONG_LOI", loi: loi.slice(0, 50) }, 400);
@@ -51,9 +54,10 @@ imp.post("/so-chi-tiet", async (c) => {
   if (sach.length) {
     lenh.push(
       db.prepare(
-        `INSERT INTO so_chi_tiet_tam (lo, ma_kho, ten_kho, ma_hang, ten_hang, ngay_hach_toan, ngay_chung_tu, so_chung_tu, dvt, dien_giai, sl_nhap, sl_xuat, tk_doi_ung)
+        `INSERT INTO so_chi_tiet_tam (lo, ma_kho, ten_kho, ma_hang, ten_hang, ngay_hach_toan, ngay_chung_tu, so_chung_tu, dvt, dien_giai, sl_nhap, sl_xuat, tk_doi_ung, tk_kho, sl_ton, ma_phe_duyet)
          SELECT ?, json_extract(value, '$.ma_kho'), json_extract(value, '$.ten_kho'), json_extract(value, '$.ma_hang'), json_extract(value, '$.ten_hang'), json_extract(value, '$.ngay_hach_toan'), json_extract(value, '$.ngay_chung_tu'),
-                json_extract(value, '$.so_chung_tu'), json_extract(value, '$.dvt'), json_extract(value, '$.dien_giai'), json_extract(value, '$.sl_nhap'), json_extract(value, '$.sl_xuat'), json_extract(value, '$.tk_doi_ung')
+                json_extract(value, '$.so_chung_tu'), json_extract(value, '$.dvt'), json_extract(value, '$.dien_giai'), json_extract(value, '$.sl_nhap'), json_extract(value, '$.sl_xuat'), json_extract(value, '$.tk_doi_ung'),
+                json_extract(value, '$.tk_kho'), json_extract(value, '$.sl_ton'), json_extract(value, '$.ma_phe_duyet')
          FROM json_each(?)`,
       ).bind(body.lo, JSON.stringify(sach)),
     );
@@ -75,8 +79,8 @@ imp.post("/so-chi-tiet", async (c) => {
          AND ma_kho IN (SELECT DISTINCT ma_kho FROM so_chi_tiet_tam WHERE lo = ?)`,
     ).bind(pv.tu, pv.den, body.lo),
     db.prepare(
-      `INSERT INTO so_chi_tiet (ma_kho, ten_kho, ma_hang, ten_hang, ngay_hach_toan, ngay_chung_tu, so_chung_tu, dvt, dien_giai, sl_nhap, sl_xuat, tk_doi_ung, import_id)
-       SELECT ma_kho, ten_kho, ma_hang, ten_hang, ngay_hach_toan, ngay_chung_tu, so_chung_tu, dvt, dien_giai, sl_nhap, sl_xuat, tk_doi_ung,
+      `INSERT INTO so_chi_tiet (ma_kho, ten_kho, ma_hang, ten_hang, ngay_hach_toan, ngay_chung_tu, so_chung_tu, dvt, dien_giai, sl_nhap, sl_xuat, tk_doi_ung, tk_kho, sl_ton, ma_phe_duyet, import_id)
+       SELECT ma_kho, ten_kho, ma_hang, ten_hang, ngay_hach_toan, ngay_chung_tu, so_chung_tu, dvt, dien_giai, sl_nhap, sl_xuat, tk_doi_ung, tk_kho, sl_ton, ma_phe_duyet,
               (SELECT MAX(id) FROM import_log)
        FROM so_chi_tiet_tam WHERE lo = ?`,
     ).bind(body.lo),
@@ -199,7 +203,7 @@ imp.post("/khai-bao-lk", async (c) => {
 // Thay the tam thoi khi chua co API linh-kien-app: moi file = 1 phien ton_kho_phien nguon 'import'. Lo dau tao phien
 // 'dang_keo', cac lo ghi thang vao ton_kho (phien chua 'xong' nen bao cao chua dung), lo cuoi danh dau 'xong'.
 // Kho loai 'ktv' -> dong nguon 'ktv' (bao cao thu hoi), con lai 'kho'. Ma kho chua co -> them vao danh muc kho loai 'khac'.
-interface TonRow { ma_kho: string; ten_kho?: string; ma_hang: string; ten_hang?: string; dau_ky?: number; nhap_kho?: number; xuat_kho?: number; cuoi_ky?: number }
+interface TonRow { ma_kho: string; ten_kho?: string; ma_hang: string; ten_hang?: string; dvt?: string; dau_ky?: number; nhap_kho?: number; xuat_kho?: number; cuoi_ky?: number }
 
 imp.post("/ton-kho", async (c) => {
   const body = await c.req.json<Body<TonRow> & { cuoi?: { ten_file?: string; ky_tu_ngay?: string; ky_den_ngay?: string } }>();
@@ -210,7 +214,7 @@ imp.post("/ton-kho", async (c) => {
   const sach = rows.flatMap((r, i) => {
     const ma_kho = chuoi(r.ma_kho), ma_hang = chuoi(r.ma_hang);
     if (!ma_kho || !ma_hang) return loi.push({ dong: i, loi: "THIEU_MA" }), [];
-    return [{ ma_kho, ten_kho: chuoi(r.ten_kho), ma_hang, ten_hang: chuoi(r.ten_hang), dau_ky: so(r.dau_ky), nhap_kho: so(r.nhap_kho), xuat_kho: so(r.xuat_kho), cuoi_ky: so(r.cuoi_ky) }];
+    return [{ ma_kho, ten_kho: chuoi(r.ten_kho), ma_hang, ten_hang: chuoi(r.ten_hang), dvt: chuoi(r.dvt), dau_ky: so(r.dau_ky), nhap_kho: so(r.nhap_kho), xuat_kho: so(r.xuat_kho), cuoi_ky: so(r.cuoi_ky) }];
   });
   if (loi.length) return c.json({ error: "DONG_LOI", loi: loi.slice(0, 50) }, 400);
 
@@ -235,9 +239,10 @@ imp.post("/ton-kho", async (c) => {
          FROM json_each(?) GROUP BY json_extract(value, '$.ma_kho')`,
       ).bind(JSON.stringify(sach)),
       db.prepare(
-        `INSERT INTO ton_kho (phien_id, nguon, ma_kho, ma_ktv, ma_hang, ten_hang, dau_ky, nhap_kho, xuat_kho, cuoi_ky)
-         SELECT ?1, CASE WHEN k.loai = 'ktv' THEN 'ktv' ELSE 'kho' END, j.ma_kho, k.ma_ktv, j.ma_hang, j.ten_hang, j.dau_ky, j.nhap_kho, j.xuat_kho, j.cuoi_ky
+        `INSERT INTO ton_kho (phien_id, nguon, ma_kho, ma_ktv, ma_hang, ten_hang, ten_kho, dvt, dau_ky, nhap_kho, xuat_kho, cuoi_ky)
+         SELECT ?1, CASE WHEN k.loai = 'ktv' THEN 'ktv' ELSE 'kho' END, j.ma_kho, k.ma_ktv, j.ma_hang, j.ten_hang, j.ten_kho, j.dvt, j.dau_ky, j.nhap_kho, j.xuat_kho, j.cuoi_ky
          FROM (SELECT json_extract(value, '$.ma_kho') AS ma_kho, json_extract(value, '$.ma_hang') AS ma_hang, json_extract(value, '$.ten_hang') AS ten_hang,
+                      json_extract(value, '$.ten_kho') AS ten_kho, json_extract(value, '$.dvt') AS dvt,
                       json_extract(value, '$.dau_ky') AS dau_ky, json_extract(value, '$.nhap_kho') AS nhap_kho, json_extract(value, '$.xuat_kho') AS xuat_kho,
                       json_extract(value, '$.cuoi_ky') AS cuoi_ky FROM json_each(?2)) j
          LEFT JOIN kho k ON k.ma = j.ma_kho
@@ -260,7 +265,20 @@ imp.post("/ton-kho", async (c) => {
     db.prepare("INSERT INTO import_log (loai, ten_file, nguoi, luc, so_dong, tu_ngay, den_ngay, ghi_chu) VALUES ('ton_kho', ?, ?, ?, ?, ?, ?, ?)")
       .bind(chuoi(body.cuoi.ten_file), email, luc, dem.n, tu, den, `Kho công ty / khác: ${dem.kho ?? 0} dòng · Kho KTV: ${dem.ktv ?? 0} dòng`),
   ]);
+  // Bao linh-kien-app keo phien moi ngay (khong cho cron).
+  c.executionCtx.waitUntil(baoPhienTonMoi(c.env, luc).catch((e) => console.error("[baoPhienTonMoi]", e)));
   return c.json({ ok: true, so_dong: dem.n, so_dong_kho: dem.kho ?? 0, so_dong_ktv: dem.ktv ?? 0 });
+});
+
+// ---------------------------------------------------------------- Trang thai cac ben keo du lieu MISA (man Nhap du lieu)
+imp.get("/trang-thai-doi-tac", async (c) => {
+  const db = c.env.DB;
+  const [phien, khoa, bao] = await Promise.all([
+    db.prepare("SELECT xong_luc FROM ton_kho_phien WHERE trang_thai = 'xong' AND nguon = 'import' ORDER BY id DESC LIMIT 1").first<string>("xong_luc"),
+    db.prepare("SELECT ten, quyen, bat_tat, dung_cuoi_luc, phien_ton_da_keo, phien_ton_keo_luc FROM doi_tac_api_key ORDER BY ten").all(),
+    db.prepare("SELECT value, updated_at FROM app_settings WHERE key = 'thong_bao_phien_ton'").first<{ value: string; updated_at: string }>(),
+  ]);
+  return c.json({ phien_ton_moi_nhat: phien ?? null, doi_tac: khoa.results, thong_bao: bao ? { ...JSON.parse(bao.value), luc: bao.updated_at } : null });
 });
 
 // ---------------------------------------------------------------- Lich su import + moc du lieu

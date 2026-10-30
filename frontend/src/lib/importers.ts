@@ -8,6 +8,7 @@ const ma = (v: unknown) => docChuoi(typeof v === "number" ? Math.round(v) : v);
 export interface SctRow {
   ma_kho: string; ten_kho: string | null; ma_hang: string; ten_hang: string | null; ngay_hach_toan: string; ngay_chung_tu: string | null;
   so_chung_tu: string | null; dvt: string | null; dien_giai: string | null; sl_nhap: number; sl_xuat: number; tk_doi_ung: string | null;
+  tk_kho: string | null; sl_ton: number | null; ma_phe_duyet: string | null;
 }
 
 export function docSoChiTiet(rows: unknown[][]): { rows: SctRow[]; bo_qua: number } {
@@ -17,7 +18,7 @@ export function docSoChiTiet(rows: unknown[][]): { rows: SctRow[]; bo_qua: numbe
       ma_kho: ["ma kho"], ten_kho: ["ten kho"], ma_hang: ["ma hang", "ma vat tu", "ma san pham"], ten_hang: ["ten hang", "ten vat tu", "ten san pham"],
       ngay_hach_toan: ["ngay hach toan"], ngay_chung_tu: ["ngay chung tu"], so_chung_tu: ["so chung tu"], dvt: ["dvt", "don vi tinh"],
       dien_giai: ["dien giai"], sl_nhap: ["so luong nhap", "nhap so luong", "sl nhap"], sl_xuat: ["so luong xuat", "xuat so luong", "sl xuat"],
-      tk_doi_ung: ["tk doi ung"],
+      tk_doi_ung: ["tk doi ung"], tk_kho: ["tk kho"], sl_ton: ["so luong ton", "ton so luong", "sl ton"], ma_phe_duyet: ["ma phe duyet"],
     },
     ["ma_kho", "ma_hang", "ngay_hach_toan", "sl_xuat"],
   );
@@ -38,6 +39,7 @@ export function docSoChiTiet(rows: unknown[][]): { rows: SctRow[]; bo_qua: numbe
       ma_kho: mk, ten_kho: docChuoi(g(r, "ten_kho")), ma_hang: mh, ten_hang: docChuoi(g(r, "ten_hang")), ngay_hach_toan: ngay,
       ngay_chung_tu: docNgay(g(r, "ngay_chung_tu")), so_chung_tu: docChuoi(g(r, "so_chung_tu")), dvt: docChuoi(g(r, "dvt")), dien_giai: dg,
       sl_nhap: docSo(g(r, "sl_nhap")) ?? 0, sl_xuat: docSo(g(r, "sl_xuat")) ?? 0, tk_doi_ung: docChuoi(g(r, "tk_doi_ung")),
+      tk_kho: docChuoi(g(r, "tk_kho")), sl_ton: docSo(g(r, "sl_ton")), ma_phe_duyet: docChuoi(g(r, "ma_phe_duyet")),
     });
   }
   return { rows: out, bo_qua: boQua };
@@ -133,13 +135,14 @@ export function docKho(rows: unknown[][]): KhoRow[] {
 }
 
 // ---------------------------------------------------------------- Ton kho (MISA "Tong hop ton kho" - thay API linh-kien-app)
-export interface TonRow { ma_kho: string; ten_kho: string | null; ma_hang: string; ten_hang: string | null; dau_ky: number; nhap_kho: number; xuat_kho: number; cuoi_ky: number }
+export interface TonRow { ma_kho: string; ten_kho: string | null; ma_hang: string; ten_hang: string | null; dvt: string | null; dau_ky: number; nhap_kho: number; xuat_kho: number; cuoi_ky: number }
 
 export function docTonKho(rows: unknown[][]): { rows: TonRow[]; bo_qua: number } {
   const t = timCot(
     rows,
     {
       ma_kho: ["ma kho"], ten_kho: ["ten kho"], ma_hang: ["ma hang", "ma vat tu", "ma san pham"], ten_hang: ["ten hang", "ten vat tu", "ten san pham"],
+      dvt: ["dvt", "don vi tinh"],
       dau_ky: ["dau ky so luong", "so luong dau ky", "ton dau ky", "dau ky", "sl dau ky"],
       nhap_kho: ["nhap kho so luong", "so luong nhap kho", "nhap kho", "nhap trong ky", "so luong nhap", "sl nhap"],
       xuat_kho: ["xuat kho so luong", "so luong xuat kho", "xuat kho", "xuat trong ky", "so luong xuat", "sl xuat"],
@@ -159,7 +162,7 @@ export function docTonKho(rows: unknown[][]): { rows: TonRow[]; bo_qua: number }
       continue;
     }
     out.push({
-      ma_kho: mk, ten_kho: docChuoi(g(r, "ten_kho")), ma_hang: mh, ten_hang: docChuoi(g(r, "ten_hang")),
+      ma_kho: mk, ten_kho: docChuoi(g(r, "ten_kho")), ma_hang: mh, ten_hang: docChuoi(g(r, "ten_hang")), dvt: docChuoi(g(r, "dvt")),
       dau_ky: docSo(g(r, "dau_ky")) ?? 0, nhap_kho: docSo(g(r, "nhap_kho")) ?? 0, xuat_kho: docSo(g(r, "xuat_kho")) ?? 0, cuoi_ky: docSo(g(r, "cuoi_ky")) ?? 0,
     });
   }

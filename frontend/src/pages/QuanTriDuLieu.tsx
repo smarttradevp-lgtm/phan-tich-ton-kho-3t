@@ -103,6 +103,8 @@ export default function QuanTriDuLieu() {
         </div>
       </div>
 
+      <DoiChieuPhien ds={d.phien_ton.filter((p) => p.trang_thai === "xong")} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="card">
           <h2 className="card-title mb-1">Sổ chi tiết theo tháng</h2>
@@ -171,6 +173,119 @@ export default function QuanTriDuLieu() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Doi chieu 2 phien ton kho - giai doan chay song song (docs/KE_HOACH_KHO_MISA.md): phien Ke toan nhap o app nay
+// (nguon "File Excel") vs phien keo tu linh-kien-app cung ngay. Khop = 0 dong lech.
+interface DoiChieu {
+  phien: { id: number; nguon: string; ten_file: string | null; xong_luc: string }[];
+  theo_kho: { ma_kho: string; ten_kho: string | null; a: number; b: number; dong_a: number; dong_b: number }[];
+  lech: { ma_kho: string; ma_hang: string; ten_hang: string | null; a: number; b: number }[];
+  so_dong_lech: number;
+}
+
+function DoiChieuPhien({ ds }: { ds: Kq["phien_ton"] }) {
+  const macDinhA = ds.find((p) => p.nguon === "import")?.id ?? ds[0]?.id ?? 0;
+  const macDinhB = ds.find((p) => p.nguon !== "import")?.id ?? ds[1]?.id ?? 0;
+  const [a, setA] = useState(macDinhA);
+  const [b, setB] = useState(macDinhB);
+  const [chay, setChay] = useState(false);
+  const q = useQuery({ queryKey: ["doi-chieu", a, b], queryFn: () => api<DoiChieu>(`/quan-tri/doi-chieu-phien?a=${a}&b=${b}`), enabled: chay && !!a && !!b && a !== b });
+  const ten = (p: Kq["phien_ton"][number]) => `#${p.id} · ${p.nguon === "import" ? "File Excel" : "linh-kien-app"} · ${p.xong_luc?.slice(0, 16)}`;
+  const chon = (v: number, dat: (n: number) => void) => (
+    <select className="input max-w-full" value={v} onChange={(e) => (dat(Number(e.target.value)), setChay(false))}>
+      {ds.map((p) => (
+        <option key={p.id} value={p.id}>
+          {ten(p)}
+        </option>
+      ))}
+    </select>
+  );
+  const d = q.data;
+  return (
+    <div className="card">
+      <h2 className="card-title mb-1">Đối chiếu 2 phiên tồn kho</h2>
+      <p className="mb-3 text-xs text-ink-soft">Dùng khi chạy song song: so phiên Kế toán nhập ở app này với phiên kéo từ linh-kien-app của cùng file. Khớp hoàn toàn = 0 dòng lệch.</p>
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+        A {chon(a, setA)} <span className="text-ink-soft">so với</span> B {chon(b, setB)}
+        <button className="btn-primary btn-sm" disabled={!a || !b || a === b} onClick={() => setChay(true)}>
+          Đối chiếu
+        </button>
+      </div>
+      {q.isFetching ? (
+        <TaiDang />
+      ) : q.error ? (
+        <Loi loi={q.error} />
+      ) : d ? (
+        <div className="space-y-3">
+          <ThongBao loai={d.so_dong_lech ? "warning" : "success"}>
+            {d.so_dong_lech ? `${fmtSo(d.so_dong_lech)} dòng (mã kho × mã hàng) lệch số cuối kỳ.` : "✓ Khớp hoàn toàn — không dòng nào lệch."}
+          </ThongBao>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="max-h-72 overflow-auto rounded-lg border border-line">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Kho</th>
+                    <th className="so">Dòng A / B</th>
+                    <th className="so">Cuối kỳ A</th>
+                    <th className="so">Cuối kỳ B</th>
+                    <th className="so">Lệch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.theo_kho.map((k) => (
+                    <tr key={k.ma_kho}>
+                      <td>
+                        {k.ten_kho ?? k.ma_kho} <span className="font-mono text-xs text-ink-soft">{k.ma_kho}</span>
+                      </td>
+                      <td className="so">
+                        {k.dong_a} / {k.dong_b}
+                      </td>
+                      <td className="so">{fmtSo(k.a, 2)}</td>
+                      <td className="so">{fmtSo(k.b, 2)}</td>
+                      <td className={`so ${Math.abs(k.a - k.b) > 0.0001 ? "font-semibold text-danger" : "text-ink-soft"}`}>{fmtSo(k.a - k.b, 2) || "0"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="max-h-72 overflow-auto rounded-lg border border-line">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Kho</th>
+                    <th>Mã hàng</th>
+                    <th className="so">A</th>
+                    <th className="so">B</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.lech.map((x) => (
+                    <tr key={x.ma_kho + x.ma_hang}>
+                      <td className="font-mono text-xs">{x.ma_kho}</td>
+                      <td>
+                        <span className="font-mono text-xs">{x.ma_hang}</span> <span className="text-xs text-ink-soft">{x.ten_hang}</span>
+                      </td>
+                      <td className="so">{fmtSo(x.a, 2) || "0"}</td>
+                      <td className="so">{fmtSo(x.b, 2) || "0"}</td>
+                    </tr>
+                  ))}
+                  {!d.lech.length && (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-ink-soft">
+                        Không có dòng lệch.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

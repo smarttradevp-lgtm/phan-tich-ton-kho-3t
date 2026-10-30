@@ -348,6 +348,8 @@ export default function ImportDuLieu({ laAdmin }: { laAdmin: boolean }) {
         <DongBo laAdmin={laAdmin} />
       </div>
 
+      <TrangThaiDoiTac />
+
       <div className="card">
         <h2 className="card-title mb-2">Lịch sử nhập dữ liệu</h2>
         <Bang rows={lichSu.data?.rows ?? []} cot={lichSuCot} kichThuoc={25} timTheo={(r) => `${r.ten_file} ${r.loai} ${r.nguoi}`} />
@@ -407,6 +409,49 @@ function DongBo({ laAdmin }: { laAdmin: boolean }) {
       </div>
       {chay.error && <div className="mt-2"><Loi loi={chay.error} /></div>}
       {chot.data && <p className="mt-2 text-xs text-success">Đã chốt: {JSON.stringify(chot.data.da_chot)}</p>}
+    </div>
+  );
+}
+
+// Cac he thong keo du lieu MISA tu app nay (linh-kien-app, DVBH, EO): da nhan phien ton kho moi nhat chua.
+function TrangThaiDoiTac() {
+  const q = useQuery({
+    queryKey: ["trang-thai-doi-tac"],
+    queryFn: () =>
+      api<{
+        phien_ton_moi_nhat: string | null;
+        doi_tac: { ten: string; quyen: string; bat_tat: number; dung_cuoi_luc: string | null; phien_ton_da_keo: string | null; phien_ton_keo_luc: string | null }[];
+        thong_bao: { phien_ban: string; linh_kien_app: string; luc: string } | null;
+      }>("/import/trang-thai-doi-tac"),
+    refetchInterval: 30000,
+  });
+  const d = q.data;
+  if (!d || !d.doi_tac.length) return null;
+  return (
+    <div className="card">
+      <h2 className="card-title mb-1">Các hệ thống nhận dữ liệu MISA</h2>
+      <p className="mb-2 text-xs text-ink-soft">
+        Phiên tồn kho mới nhất nhập ở đây: <b className="text-ink">{d.phien_ton_moi_nhat ?? "chưa có"}</b>
+        {d.thong_bao && (
+          <>
+            {" "}
+            · đã báo linh-kien-app: <b className={d.thong_bao.linh_kien_app === "ok" ? "text-success" : "text-danger"}>{d.thong_bao.linh_kien_app === "ok" ? "đã nhận" : d.thong_bao.linh_kien_app}</b>
+          </>
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {d.doi_tac.map((k) => {
+          const coTon = String(k.quyen).includes("ton_kho");
+          const daNhan = coTon && !!d.phien_ton_moi_nhat && k.phien_ton_da_keo === d.phien_ton_moi_nhat;
+          return (
+            <span key={k.ten} className={`chip ${!k.bat_tat ? "opacity-50" : daNhan ? "border-green-300 text-success" : coTon && d.phien_ton_moi_nhat ? "border-amber-300 text-warning" : ""}`}>
+              <b>{k.ten}</b>
+              {!k.bat_tat ? " · khoá đã tắt" : coTon ? (daNhan ? ` · ✓ đã kéo phiên mới (${k.phien_ton_keo_luc?.slice(11, 16)})` : " · chưa kéo phiên mới") : ""}
+              {k.dung_cuoi_luc && <span className="text-ink-soft"> · dùng lần cuối {k.dung_cuoi_luc.slice(5, 16)}</span>}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

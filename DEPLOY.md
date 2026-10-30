@@ -19,6 +19,7 @@ Chưa có tài nguyên Cloudflare / Google thật. Làm theo thứ tự:
    npx wrangler secret put SESSION_SECRET      # chuỗi ngẫu nhiên >= 32 ký tự
    npx wrangler secret put LINHKIEN_API_KEY    # khoá ở bước 1
    npx wrangler secret put DVBH_API_KEY        # khoá ở bước 4b (tuỳ chọn)
+   npx wrangler secret put HUB_SYNC_KEY        # chuỗi ngẫu nhiên, đặt GIỐNG HỆT bên linh-kien-app (báo phiên tồn kho mới)
    ```
 6. `npm run deploy`.
 7. Đăng nhập bằng `BOOTSTRAP_ADMIN_EMAIL` → **Nhập & đồng bộ**:
@@ -27,3 +28,12 @@ Chưa có tài nguyên Cloudflare / Google thật. Làm theo thứ tự:
    - Import lần đầu: file xuất tháng tĩnh (sheet "1.1. Data kho Cũ"), khai báo LK (sheet "3. Khai báo linh kiện"), thông tin
      kho KTV (sheet "4.3. Cài đặt kho"), giá nhập (file Google Drive), sổ chi tiết vật tư 30 ngày.
 8. Chạy song song với Google Sheet 1 kỳ, đối chiếu theo `docs/DAC_TA_LOGIC.md` mục 9.
+
+## Kho dữ liệu MISA (app này là nơi nhập MISA gốc)
+
+Kế hoạch + lộ trình 4 giai đoạn: `docs/KE_HOACH_KHO_MISA.md`; tài liệu API cho các bên: `docs/API_DOI_TAC_MISA.md`.
+1. Quản trị › Kho dữ liệu MISA › **Tạo khoá** cho linh-kien-app (quyền Tồn kho) → đặt vào secret `HUB_API_KEY` bên linh-kien-app.
+2. Đặt `HUB_SYNC_KEY` giống nhau ở 2 Worker; bên linh-kien-app thêm Service Binding `HUB_SERVICE` → Worker `phantichtonkho`.
+3. Giai đoạn chạy song song: linh-kien-app đặt nguồn tồn = "Thử (bảng bóng)"; Kế toán nhập file tồn ở CẢ 2 app; mỗi ngày
+   Quản trị › Dữ liệu hệ thống › **Đối chiếu 2 phiên tồn kho** (phiên File Excel vs phiên linh-kien-app).
+4. Chuyển nguồn: linh-kien-app đặt nguồn = "App Phân tích tồn kho"; app này bật "App này là nguồn tồn kho".

@@ -4,6 +4,7 @@
 // API ben linh-kien-app: docs/API_LINH_KIEN_APP.md.
 import type { Env } from "../types";
 import { nowVN } from "./vnTime";
+import { hubLaNguonTon } from "./khoMisa";
 
 async function goiLinhKien<T>(env: Env, duongDan: string): Promise<T> {
   if (!env.LINHKIEN_API_KEY) throw new Error("THIEU_LINHKIEN_API_KEY");
@@ -167,7 +168,8 @@ export async function chayDongBo(env: Env, phan: { tonKho?: boolean; danhMuc?: b
   }
   if (phan.tonKho) {
     try {
-      kq.ton_kho = await dongBoTonKho(env, phan.epBuoc);
+      // App nay da la nguon ton kho (Ke toan nhap o day) -> khong keo nguoc tu linh-kien-app.
+      kq.ton_kho = (await hubLaNguonTon(env.DB)) ? { trang_thai: "bo_qua_hub_la_nguon" } : await dongBoTonKho(env, phan.epBuoc);
     } catch (e) {
       kq.loi_ton_kho = String(e);
     }

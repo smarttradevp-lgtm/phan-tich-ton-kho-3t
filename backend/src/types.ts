@@ -9,6 +9,8 @@ export interface Env {
   DVBH_SERVICE?: Fetcher;
   DVBH_BASE_URL: string;
   DVBH_API_KEY?: string;
+  // Khoa dung chung voi linh-kien-app de bao "co phien ton kho moi" (POST /api/hub-misa/thong-bao ben do).
+  HUB_SYNC_KEY?: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   GOOGLE_REDIRECT_URI: string;

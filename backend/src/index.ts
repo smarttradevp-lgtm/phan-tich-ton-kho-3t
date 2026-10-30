@@ -7,6 +7,7 @@ import caiDatRoutes from "./routes/caiDat";
 import importRoutes from "./routes/importDuLieu";
 import dongBoRoutes from "./routes/dongBo";
 import quanTriRoutes from "./routes/quanTri";
+import doiTacRoutes from "./routes/doiTacApi";
 import { xacThucPhien, napNguoiDung } from "./middleware/session";
 import { chayDongBo } from "./lib/dongBoLinhKien";
 import { chotThangTinh } from "./lib/chotThang";
@@ -34,6 +35,8 @@ app.use("/api/*", async (c, next) => {
 });
 
 app.route("/api/auth", authRoutes);
+// API doi tac (X-API-Key, khong dung phien dang nhap) - phai mount TRUOC middleware phien ben duoi.
+app.route("/api/doi-tac", doiTacRoutes);
 
 // Moi API con lai: can dang nhap + tai khoan da duyet.
 app.use("/api/*", xacThucPhien, napNguoiDung);

@@ -44,5 +44,6 @@
     "DVBH_BASE_URL": "https://dvbh.dichvu3t.workers.dev"
   }
   // Secrets (wrangler secret put): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET, LINHKIEN_API_KEY,
-  // DVBH_API_KEY (khoa doi tac app DVBH - thieu thi Hồ sơ linh kiện hien "chưa kết nối")
+  // DVBH_API_KEY (khoa doi tac app DVBH - thieu thi Hồ sơ linh kiện hien "chưa kết nối"),
+  // HUB_SYNC_KEY (secret CHUNG voi linh-kien-app - bao "co phien ton kho moi", docs/KE_HOACH_KHO_MISA.md)
 }

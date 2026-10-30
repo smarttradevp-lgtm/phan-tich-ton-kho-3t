@@ -14,6 +14,7 @@ const CaiDat = lazy(() => import("./pages/CaiDat"));
 const NguoiDung = lazy(() => import("./pages/NguoiDung"));
 const QuanTriDuLieu = lazy(() => import("./pages/QuanTriDuLieu"));
 const NhatKy = lazy(() => import("./pages/NhatKy"));
+const KhoMisa = lazy(() => import("./pages/KhoMisa"));
 
 export type VaiTro = "admin" | "nhap_lieu" | "xem";
 interface Me { email: string; ten: string | null; vai_tro: VaiTro; trang_thai: string }
@@ -51,6 +52,7 @@ const NHOM: { t: string; ds: Trang[] }[] = [
     ds: [
       { k: "quan-tri/nguoi-dung", t: "Người dùng", icon: "nguoi", vaiTro: ["admin"] },
       { k: "quan-tri/du-lieu", t: "Dữ liệu hệ thống", icon: "du-lieu", vaiTro: ["admin"] },
+      { k: "quan-tri/kho-misa", t: "Kho dữ liệu MISA", icon: "lop", vaiTro: ["admin"] },
       { k: "quan-tri/nhat-ky", t: "Nhật ký", icon: "nhat-ky", vaiTro: ["admin"] },
     ],
   },
@@ -180,6 +182,7 @@ export default function App() {
               {hienTai === "quan-tri/nguoi-dung" && <NguoiDung toi={u.email} />}
               {hienTai === "quan-tri/du-lieu" && <QuanTriDuLieu />}
               {hienTai === "quan-tri/nhat-ky" && <NhatKy />}
+              {hienTai === "quan-tri/kho-misa" && <KhoMisa />}
             </Suspense>
           </main>
         </div>
