@@ -66,7 +66,7 @@ là localhost — KHÔNG bao giờ đặt `DEV_LOGIN` ở `wrangler.jsonc` / sec
 - **Tổng quan** (`GET /bao-cao/tong-quan`) tính lại cả 3 báo cáo mỗi lần gọi + kiểm tra chất lượng dữ liệu.
 - **Hồ sơ linh kiện** (`components/HoSoLinhKien.tsx`, `GET /bao-cao/lk/:ma`): popup ~95% màn hình, bố cục theo "Hồ sơ linh kiện"
   của app DVBH (repo `dvbh-suite`, nhánh mới nhất `docs/module-sua-chua-bao-hanh-plan` — `main` là bản cũ tháng 7): thẻ số liệu +
-  "Nhận định nhanh" + 4 vùng (Tiêu hao / Đánh giá rủi ro / Nguồn hàng / Chứng từ & khai báo). Backend tính lại đắp chiếu / leadtime /
+  "Nhận định nhanh" + các vùng đánh số (xem dưới). Backend tính lại đắp chiếu / leadtime /
   thu hồi CHỈ cho mã đó (tham số `chiMa` của `baoCaoDapChieu`/`baoCaoLeadtime`/`baoCaoThuHoi` — mỗi dòng tính độc lập nên khớp báo
   cáo đầy đủ; `chiMa` nhận cả danh sách mã → 1 bind JSON, dùng cho mã tương đương). Mở từ mọi nơi: `useMoLk()(ma, dsMa)` (dsMa = danh
   sách đang xem → ‹ › / phím ←→); mã đang mở nằm trên URL `?lk=`. 6 vùng: Tiêu hao & nhu cầu / Đánh giá rủi ro / Nguồn hàng / Mã tương
