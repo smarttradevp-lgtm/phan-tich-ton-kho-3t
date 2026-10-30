@@ -4,7 +4,7 @@ import { api, fmtSo, fmtThang } from "../lib/api";
 import { taiExcel } from "../lib/excel";
 import { Bang, Chon, ChonGiaTri, cotXuat, duyNhat, giaTriXuat, Loi, MO_TA_XEP_LOAI, NhanXepLoai, TaiDang, TieuDe, type Cot } from "../components/ui";
 import { useUrlState, xoaLocTrang, coLocTrang } from "../lib/dieuHuong";
-import { useMoLk } from "../components/ChiTietLk";
+import { useMoLk } from "../components/HoSoLinhKien";
 import { soGon } from "../components/bieuDo";
 
 export interface DapChieuDong {
@@ -143,7 +143,7 @@ export default function DapChieu({ t5 = false }: { t5?: boolean }) {
           idUrl="bang"
           onLoc={setDaLoc}
           timTheo={(r) => `${r.ma} ${r.ten}`}
-          onClick={(r) => moLk(r.ma)}
+          onClick={(r) => moLk(r.ma, loc.map((x) => x.ma))}
           tongThe={
             <div className="card grid grid-cols-3 gap-2 bg-primary-soft/60 p-3 text-xs">
               <div>

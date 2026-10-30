@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
 import { Bang, Chon, ChonGiaTri, duyNhat, Icon, Loi, Modal, TaiDang, ThongBao, TieuDe, type Cot } from "../components/ui";
-import { useMoLk } from "../components/ChiTietLk";
+import { useMoLk } from "../components/HoSoLinhKien";
 import { useUrlState } from "../lib/dieuHuong";
 
 const TIEU_DE: Record<string, { ten: string; moTa: string }> = {
@@ -146,7 +146,7 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
       ten: "",
       lay: (r) => (
         <span className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-          <button className="btn btn-sm" onClick={() => moLk(r.ma)} title="Xem tồn / xuất">
+          <button className="btn btn-sm" onClick={() => moLk(r.ma, daLoc.map((x) => x.ma))} title="Mở hồ sơ linh kiện">
             Xem
           </button>
           {coTheGhi && (
@@ -206,7 +206,7 @@ function KhaiBaoLk({ coTheGhi }: { coTheGhi: boolean }) {
         idUrl="bang"
         onLoc={setDaLoc}
         timTheo={(r) => `${r.ma} ${r.ten ?? ""}`}
-        onClick={coTheGhi ? setSua : (r) => moLk(r.ma)}
+        onClick={coTheGhi ? setSua : (r) => moLk(r.ma, daLoc.map((x) => x.ma))}
         chon={coTheGhi ? chon : undefined}
         datChon={setChon}
         khoa={(r) => r.ma}

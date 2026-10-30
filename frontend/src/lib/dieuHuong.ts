@@ -19,8 +19,12 @@ function ghiQ(q: URLSearchParams) {
   const t = trangHienTai();
   const s = q.toString();
   history.replaceState(null, "", `#/${t}${s ? `?${s}` : ""}`);
+  // Khong luu "lk" (ho so linh kien dang mo) - quay lai trang khong tu mo lai ho so.
+  const luu = new URLSearchParams(q);
+  luu.delete("lk");
+  const sl = luu.toString();
   try {
-    if (s) localStorage.setItem(KHOA_LUU(t), s);
+    if (sl) localStorage.setItem(KHOA_LUU(t), sl);
     else localStorage.removeItem(KHOA_LUU(t));
   } catch {
     /* localStorage bi chan -> chi giu tren URL */
@@ -49,7 +53,11 @@ export function xoaLocTrang() {
   dispatchEvent(new Event("xoa-loc"));
 }
 
-export const coLocTrang = () => location.hash.includes("?");
+export const coLocTrang = () => {
+  const q = new URLSearchParams(location.hash.split("?")[1] ?? "");
+  q.delete("lk");
+  return q.toString() !== "";
+};
 
 // State dong bo voi 1 tham so tren URL. khoa = null -> state thuong (khong luu). Chuoi luu tho, kieu khac luu JSON.
 export function useUrlState<T>(khoa: string | null, macDinh: T): [T, (v: T) => void] {

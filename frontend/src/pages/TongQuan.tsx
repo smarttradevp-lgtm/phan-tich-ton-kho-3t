@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, fmtSo, fmtThang } from "../lib/api";
 import { moTrang } from "../lib/dieuHuong";
 import { BieuDoCot, BieuDoThanh, soGon } from "../components/bieuDo";
-import { useMoLk } from "../components/ChiTietLk";
+import { useMoLk } from "../components/HoSoLinhKien";
 import { Loi, MO_TA_XEP_LOAI, NhanXepLoai, O, TaiDang, TieuDe } from "../components/ui";
 
 interface Kq {
@@ -156,7 +156,7 @@ export default function TongQuan() {
         <ul className="divide-y divide-line md:hidden">
           {d.t5_top.map((r) => (
             <li key={`${r.nhom}-${r.ma}`}>
-              <button className="flex w-full items-center gap-3 py-2 text-left" onClick={() => moLk(r.ma)}>
+              <button className="flex w-full items-center gap-3 py-2 text-left" onClick={() => moLk(r.ma, d.t5_top.map((x) => x.ma))}>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{r.ten}</div>
                   <div className="truncate text-xs text-ink-soft">
@@ -186,7 +186,7 @@ export default function TongQuan() {
             </thead>
             <tbody>
               {d.t5_top.map((r) => (
-                <tr key={`${r.nhom}-${r.ma}`} className="cursor-pointer hover:bg-subtle" onClick={() => moLk(r.ma)}>
+                <tr key={`${r.nhom}-${r.ma}`} className="cursor-pointer hover:bg-subtle" onClick={() => moLk(r.ma, d.t5_top.map((x) => x.ma))}>
                   <td className="font-mono text-xs text-primary">{r.ma}</td>
                   <td>
                     <span className="inline-block max-w-[320px] truncate align-bottom" title={r.ten}>

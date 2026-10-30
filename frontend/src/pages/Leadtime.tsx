@@ -4,7 +4,7 @@ import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
 import { Bang, Chon, ChonGiaTri, cotXuat, duyNhat, giaTriXuat, Loi, NhanCanhBao, TaiDang, TieuDe, useMobile, type Cot } from "../components/ui";
 import { coLocTrang, useUrlState, xoaLocTrang } from "../lib/dieuHuong";
-import { useMoLk } from "../components/ChiTietLk";
+import { useMoLk } from "../components/HoSoLinhKien";
 
 interface Dong {
   kho: string; ma_kho: string | null; ma: string; ten: string; tieu_hao: [number, number, number]; ton: number;
@@ -168,7 +168,7 @@ export default function Leadtime() {
             <ChonGiaTri nhan="Tần suất" giaTri={tanSuat} dat={setTanSuat} ds={["Tiêu nhiều", "Tiêu đều", "Khác (còn lại)", "Ít tiêu hao"]} />
             <ChonGiaTri nhan="Phân loại LK" giaTri={phanLoai} dat={setPhanLoai} ds={duyNhat(rows.map((r) => r.phan_loai))} />
           </div>
-          <Bang rows={locTrang} cot={cot} idUrl="bang" onLoc={setDaLoc} timTheo={(r) => `${r.ma} ${r.ten} ${r.nhom_tuong_duong ?? ""}`} onClick={(r) => moLk(r.ma)} />
+          <Bang rows={locTrang} cot={cot} idUrl="bang" onLoc={setDaLoc} timTheo={(r) => `${r.ma} ${r.ten} ${r.nhom_tuong_duong ?? ""}`} onClick={(r) => moLk(r.ma, daLoc.map((x) => x.ma))} />
           <p className="mt-2 text-xs text-ink-soft">
             Số ngày dư = Tồn / (Tiêu hao / số ngày) − số ngày cửa sổ − Leadtime · &lt; −3 thiếu nghiêm trọng · &lt; 0 thiếu · ≤ 2 tới thời điểm đặt · Tồn chuẩn = TB tiêu hao/ngày × Hệ số NK × 30.
           </p>

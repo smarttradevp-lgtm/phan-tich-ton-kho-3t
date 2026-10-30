@@ -4,7 +4,7 @@ import { api, fmtSo } from "../lib/api";
 import { taiExcel } from "../lib/excel";
 import { Bang, ChonGiaTri, cotXuat, duyNhat, giaTriXuat, Loi, TaiDang, TieuDe, type Cot } from "../components/ui";
 import { coLocTrang, useUrlState, xoaLocTrang } from "../lib/dieuHuong";
-import { useMoLk } from "../components/ChiTietLk";
+import { useMoLk } from "../components/HoSoLinhKien";
 
 interface Dong {
   kho: string; ma_kho: string; ma: string; ten: string; xuat: number | null; ton: number; lam_viec: boolean; phan_loai: string; he_so: number;
@@ -161,7 +161,7 @@ export default function ThuHoi() {
               </>
             )}
           </div>
-          <Bang rows={chiTiet} cot={cot} idUrl="bang" onLoc={setDaLoc} timTheo={(r) => `${r.ma} ${r.ten} ${r.kho}`} onClick={(r) => moLk(r.ma)} />
+          <Bang rows={chiTiet} cot={cot} idUrl="bang" onLoc={setDaLoc} timTheo={(r) => `${r.ma} ${r.ten} ${r.kho}`} onClick={(r) => moLk(r.ma, daLoc.map((x) => x.ma))} />
         </>
       )}
     </div>

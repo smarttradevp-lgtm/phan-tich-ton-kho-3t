@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "./lib/api";
 import { Icon, TaiDang, type IconTen } from "./components/ui";
-import { ChiTietLkProvider } from "./components/ChiTietLk";
+import { HoSoLkProvider } from "./components/HoSoLinhKien";
 import { khoiPhucLoc, trangHienTai } from "./lib/dieuHuong";
 
 const TongQuan = lazy(() => import("./pages/TongQuan"));
@@ -162,7 +162,7 @@ export default function App() {
   );
 
   return (
-    <ChiTietLkProvider>
+    <HoSoLkProvider>
       <div className="flex min-h-screen bg-subtle/40">
         {sidebar}
         {moMenu && <div className="fixed inset-0 z-40 bg-slate-900/30 md:hidden" onClick={() => setMoMenu(false)} />}
@@ -185,7 +185,7 @@ export default function App() {
         </div>
         <ThanhDuoi hienTai={hienTai} moMenu={() => setMoMenu(true)} />
       </div>
-    </ChiTietLkProvider>
+    </HoSoLkProvider>
   );
 }
 

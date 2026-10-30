@@ -63,8 +63,12 @@ là localhost — KHÔNG bao giờ đặt `DEV_LOGIN` ở `wrangler.jsonc` / sec
   cài đặt / người dùng / dọn dữ liệu ghi `nhat_ky` qua `lib/nhatKy.ts` (`lenhNhatKy` — gộp vào batch của thao tác chính).
 - **Phân loại so khớp không phân biệt hoa/thường** (`khoaPhanLoai` ở `duLieuBaoCao.ts`): khai báo viết khác hoa/thường được quy
   về tên chuẩn trong `phan_loai_lk`; tên không có trong danh sách hiện ở Cài đặt › Phân loại (gộp qua `POST /cai-dat/phan-loai/gop`).
-- **Tổng quan** (`GET /bao-cao/tong-quan`) tính lại cả 3 báo cáo mỗi lần gọi + kiểm tra chất lượng dữ liệu; chi tiết 1 LK
-  (`GET /bao-cao/lk/:ma`) dùng chung drawer `components/ChiTietLk.tsx` (`useMoLk()`) cho mọi bảng báo cáo.
+- **Tổng quan** (`GET /bao-cao/tong-quan`) tính lại cả 3 báo cáo mỗi lần gọi + kiểm tra chất lượng dữ liệu.
+- **Hồ sơ linh kiện** (`components/HoSoLinhKien.tsx`, `GET /bao-cao/lk/:ma`): popup ~95% màn hình, bố cục theo "Hồ sơ linh kiện"
+  của app DVBH (repo `dvbh-suite`, nhánh mới nhất `docs/module-sua-chua-bao-hanh-plan` — `main` là bản cũ tháng 7): thẻ số liệu +
+  "Nhận định nhanh" + 4 vùng (Tiêu hao / Đánh giá rủi ro / Nguồn hàng / Chứng từ & khai báo). Backend tính lại đắp chiếu / leadtime /
+  thu hồi CHỈ cho mã đó (tham số `chiMa` của `baoCaoDapChieu`/`baoCaoLeadtime`/`baoCaoThuHoi` — mỗi dòng tính độc lập nên khớp báo
+  cáo đầy đủ). Mở từ mọi nơi: `useMoLk()(ma, dsMa)` (dsMa = danh sách đang xem → ‹ › / phím ←→); mã đang mở nằm trên URL `?lk=`.
 - **Frontend**: hash routing (`#/cai-dat/lk`, `#/quan-tri/du-lieu`…), menu ở `App.tsx` (`NHOM`). Bảng dùng chung `Bang` (tìm không
   dấu, bấm tiêu đề sắp xếp theo `Cot.sx`, chọn nhiều dòng; mobile → dạng thẻ theo `Cot.the`). **Lọc cột kiểu Excel**: `Cot.loc`
   = `"gt"` (chọn nhiều giá trị, theo `Cot.gt` hoặc `sx`, có số đếm tính trên dữ liệu đã lọc bởi cột khác) | `"so"` (khoảng từ/đến);

@@ -104,33 +104,53 @@ baoCao.get("/tong-quan", async (c) => {
   });
 });
 
-// Chi tiet 1 linh kien: khai bao, ton theo kho (phien moi nhat), xuat theo thang x kho, so chi tiet gan nhat.
+// Ho so 1 linh kien (man "Hồ sơ linh kiện"): khai bao, danh muc, ket qua dap chieu / leadtime / thu hoi CUA RIENG ma nay
+// (tinh lai bang bo tinh chung voi chiMa -> khop dung dong trong bao cao day du), ton theo kho, xuat thang x kho, so chi tiet.
 baoCao.get("/lk/:ma", async (c) => {
   const db = c.env.DB;
   const ma = (c.req.param("ma") ?? "").trim();
   const ts = await docThamSoDb(db);
   const thang = dayThang(thangHienTaiVN(), ts.so_thang_hien_thi);
-  const [kb, phien, xuat, sct, kho] = await Promise.all([
+  const [kb, dm, phien, xuat, sct, kho, dcKho, dcGop, dcToanQuoc, ltKho, ltGop, th] = await Promise.all([
     docKhaiBao(db).then((m) => m.get(ma) ?? null),
+    db.prepare("SELECT ten, nhom_lk, phan_loai_vat_ly, gia_du_phong, bat_tat, dong_bo_luc FROM linh_kien WHERE ma = ?").bind(ma).first(),
     phienTonMoiNhat(db),
     docXuatThang(db, thang, ma),
-    db.prepare("SELECT ma_kho, ten_kho, ngay_hach_toan, so_chung_tu, dien_giai, sl_nhap, sl_xuat FROM so_chi_tiet WHERE ma_hang = ? ORDER BY ngay_hach_toan DESC, id DESC LIMIT 50").bind(ma).all(),
+    db.prepare(
+      "SELECT ma_kho, ten_kho, ngay_hach_toan, ngay_chung_tu, so_chung_tu, dien_giai, sl_nhap, sl_xuat, tk_doi_ung FROM so_chi_tiet WHERE ma_hang = ? ORDER BY ngay_hach_toan DESC, id DESC LIMIT 500",
+    ).bind(ma).all(),
     db.prepare("SELECT ma, ten, loai FROM kho").all<{ ma: string; ten: string; loai: string }>(),
+    baoCaoDapChieu(db, "tat_ca", ma),
+    baoCaoDapChieu(db, "gop_rieng_ktv", ma),
+    baoCaoDapChieu(db, "gop_chung", ma),
+    baoCaoLeadtime(db, { gop: false, loaiKho: "cong_ty", chiMa: ma }),
+    baoCaoLeadtime(db, { gop: true, loaiKho: "cong_ty", chiMa: ma }),
+    baoCaoThuHoi(db, ma),
   ]);
   const khoMap = new Map(kho.results.map((k) => [k.ma, k]));
   const ton = phien
     ? (await db.prepare("SELECT ma_kho, ten_hang, dau_ky, nhap_kho, xuat_kho, cuoi_ky FROM ton_kho WHERE phien_id = ? AND ma_hang = ? ORDER BY cuoi_ky DESC").bind(phien.id, ma).all<{ ma_kho: string; ten_hang: string | null; dau_ky: number; nhap_kho: number; xuat_kho: number; cuoi_ky: number }>()).results
     : [];
   const tenXuat = xuat.find((x) => x.ten_hang)?.ten_hang ?? null;
+  const heSoThuHoi = kb?.phan_loai
+    ? await db.prepare("SELECT he_so_thu_hoi FROM phan_loai_lk WHERE ten = ?").bind(kb.phan_loai).first<number>("he_so_thu_hoi")
+    : null;
   return c.json({
     ma,
-    ten: kb?.ten || ton[0]?.ten_hang || tenXuat || ma,
+    ten: kb?.ten || (dm as { ten?: string } | null)?.ten || ton[0]?.ten_hang || tenXuat || ma,
     khai_bao: kb,
+    danh_muc: dm,
+    he_so_thu_hoi: heSoThuHoi,
+    tham_so: { he_so_du_tru_mac_dinh: ts.he_so_du_tru_mac_dinh, leadtime_mac_dinh: ts.leadtime_mac_dinh, he_so_nk_mac_dinh: ts.he_so_nk_mac_dinh },
     thang,
     moc_ton_kho: phien?.xong_luc ?? null,
+    moc_so_chi_tiet: dcKho.moc_so_chi_tiet,
     ton: ton.map((t) => ({ ...t, ten_kho: khoMap.get(t.ma_kho)?.ten ?? t.ma_kho, loai_kho: khoMap.get(t.ma_kho)?.loai ?? "khac" })),
     xuat: xuat.map((x) => ({ thang: x.thang, ma_kho: x.ma_kho, ten_kho: khoMap.get(x.ma_kho)?.ten ?? x.ma_kho, loai_kho: khoMap.get(x.ma_kho)?.loai ?? "khac", sl: x.sl })),
     so_chi_tiet: sct.results,
+    dap_chieu: { theo_kho: dcKho.rows, gop_rieng_ktv: dcGop.rows, toan_quoc: dcToanQuoc.rows[0] ?? null, t5: locT5(dcGop.rows).map((r) => r.nhom) },
+    leadtime: { ngay_moc: ltKho.ngay_moc, cua_so: ltKho.cua_so, theo_kho: ltKho.rows, gop: ltGop.rows[0] ?? null },
+    thu_hoi: { ky_tu_ngay: th.ky_tu_ngay, ky_den_ngay: th.ky_den_ngay, so_ky_2_tuan: th.so_ky_2_tuan, rows: th.rows },
   });
 });
 

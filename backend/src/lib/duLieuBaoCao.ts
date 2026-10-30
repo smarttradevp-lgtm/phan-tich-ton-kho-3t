@@ -116,11 +116,11 @@ export async function docXuatThang(db: D1Database, thang: string[], maHang?: str
   return results;
 }
 
-async function docTon(db: D1Database, phienId: number) {
+async function docTon(db: D1Database, phienId: number, chiMa?: string) {
   return (
     await db
-      .prepare("SELECT nguon, ma_kho, ma_ktv, ma_hang, ten_hang, xuat_kho, cuoi_ky FROM ton_kho WHERE phien_id = ?")
-      .bind(phienId)
+      .prepare("SELECT nguon, ma_kho, ma_ktv, ma_hang, ten_hang, xuat_kho, cuoi_ky FROM ton_kho WHERE phien_id = ?1 AND (?2 IS NULL OR ma_hang = ?2)")
+      .bind(phienId, chiMa ?? null)
       .all<{ nguon: "kho" | "ktv"; ma_kho: string; ma_ktv: string | null; ma_hang: string; ten_hang: string | null; xuat_kho: number | null; cuoi_ky: number }>()
   ).results;
 }
@@ -132,18 +132,19 @@ function loaiDongTon(kho: Map<string, KhoRow>, r: { nguon: string; ma_kho: strin
 // ---------------------------------------------------------------- Dap chieu / T5
 export type CheDoGop = "tat_ca" | "gop_rieng_ktv" | "gop_khong_ktv" | "gop_chung";
 
-export async function baoCaoDapChieu(db: D1Database, cheDo: CheDoGop) {
+// chiMa: chi tinh cho 1 ma (Ho so linh kien) - moi dong tinh doc lap nen ket qua giong het dong do trong bao cao day du.
+export async function baoCaoDapChieu(db: D1Database, cheDo: CheDoGop, chiMa?: string) {
   const ts = await docThamSoDb(db);
   const thangN = thangHienTaiVN(); // chot 29/10/2026: thang N = thang hien tai (luy ke)
   const thang = dayThang(thangN, Math.max(12, ts.so_thang_hien_thi));
   const [kho, khaiBao, xuat, phien, mocSct] = await Promise.all([
     docKho(db),
     docKhaiBao(db),
-    docXuatThang(db, thang),
+    docXuatThang(db, thang, chiMa),
     phienTonMoiNhat(db),
     db.prepare("SELECT MAX(ngay_hach_toan) AS d FROM so_chi_tiet").first<string | null>("d"),
   ]);
-  const ton = phien ? await docTon(db, phien.id) : [];
+  const ton = phien ? await docTon(db, phien.id, chiMa) : [];
 
   const nhomCua = (maKho: string, loai: KhoRow["loai"]): string | null => {
     if (loai === "bo_qua") return null;
@@ -187,7 +188,7 @@ export async function baoCaoDapChieu(db: D1Database, cheDo: CheDoGop) {
 }
 
 // ---------------------------------------------------------------- Leadtime
-export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiKho: "cong_ty" | "ktv" | "tat_ca" }) {
+export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiKho: "cong_ty" | "ktv" | "tat_ca"; chiMa?: string }) {
   const ts = await docThamSoDb(db);
   const [d1, d2, d3] = ts.cua_so_ngay;
   const ngayMoc = await db.prepare("SELECT MAX(ngay_hach_toan) AS d FROM so_chi_tiet").first<string | null>("d");
@@ -206,14 +207,14 @@ export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiK
                     SUM(CASE WHEN ngay_hach_toan > ?2 THEN sl_xuat ELSE 0 END) AS t1,
                     SUM(CASE WHEN ngay_hach_toan > ?3 THEN sl_xuat ELSE 0 END) AS t2,
                     SUM(CASE WHEN ngay_hach_toan > ?4 THEN sl_xuat ELSE 0 END) AS t3
-             FROM so_chi_tiet WHERE ngay_hach_toan > ?4 AND ngay_hach_toan <= ?1
+             FROM so_chi_tiet WHERE ngay_hach_toan > ?4 AND ngay_hach_toan <= ?1 AND (?5 IS NULL OR ma_hang = ?5)
              GROUP BY ma_kho, ma_hang`,
           )
-          .bind(ngayMoc, ngayLui(ngayMoc, d1), ngayLui(ngayMoc, d2), ngayLui(ngayMoc, d3))
+          .bind(ngayMoc, ngayLui(ngayMoc, d1), ngayLui(ngayMoc, d2), ngayLui(ngayMoc, d3), opts.chiMa ?? null)
           .all<{ ma_kho: string; ma_hang: string; ten_hang: string | null; t1: number; t2: number; t3: number }>()
       ).results
     : [];
-  const ton = phien ? await docTon(db, phien.id) : [];
+  const ton = phien ? await docTon(db, phien.id, opts.chiMa) : [];
 
   const hopLe = (loai: KhoRow["loai"]) =>
     loai !== "bo_qua" && (opts.loaiKho === "tat_ca" || (opts.loaiKho === "ktv" ? loai === "ktv" : loai !== "ktv"));
@@ -243,7 +244,7 @@ export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiK
   });
   // SL du tru tieu chuan + ton du uoc tinh lay tu bao cao dap chieu (Sheet '0.2' cot Q, R): theo tung kho -> che do "tat_ca"
   // (nhom = ten kho; kho KTV gop "Kho KTV chung" nen dong kho KTV rieng khong co); gop chung -> gop kho cong ty / ca KTV.
-  const dc = await baoCaoDapChieu(db, opts.gop ? (opts.loaiKho === "cong_ty" ? "gop_khong_ktv" : "gop_chung") : "tat_ca");
+  const dc = await baoCaoDapChieu(db, opts.gop ? (opts.loaiKho === "cong_ty" ? "gop_khong_ktv" : "gop_chung") : "tat_ca", opts.chiMa);
   const dcMap = new Map(dc.rows.map((d) => [opts.gop ? d.ma : `${d.nhom}\u0000${d.ma}`, d]));
   const rows = tinhLeadtime(dauVao, ts).map((r, i) => {
     const kb = khaiBao.get(r.ma);
@@ -268,7 +269,7 @@ export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiK
 }
 
 // ---------------------------------------------------------------- Thu hoi DVBH
-export async function baoCaoThuHoi(db: D1Database) {
+export async function baoCaoThuHoi(db: D1Database, chiMa?: string) {
   const ts = await docThamSoDb(db);
   const [kho, khaiBao, phien, phanLoai, maTranRows] = await Promise.all([
     docKho(db),
@@ -284,7 +285,7 @@ export async function baoCaoThuHoi(db: D1Database) {
   const soNgay = phien?.ky_tu_ngay && phien.ky_den_ngay ? soNgayGiua(phien.ky_tu_ngay, phien.ky_den_ngay) + 1 : null;
   const soKy2Tuan = soNgay && soNgay > 0 ? soNgay / 14 : ts.so_ky_2_tuan_mac_dinh;
 
-  const ton = phien ? (await docTon(db, phien.id)).filter((t) => loaiDongTon(kho, t) === "ktv") : [];
+  const ton = phien ? (await docTon(db, phien.id, chiMa)).filter((t) => loaiDongTon(kho, t) === "ktv") : [];
   const dauVao: (ThuHoiDauVao & { ma_kho: string; phong_ban: string; khu_vuc: string; kho_chua_khai_bao: boolean })[] = ton.map((t) => {
     const k = kho.get(t.ma_kho);
     const kb = khaiBao.get(t.ma_hang);
