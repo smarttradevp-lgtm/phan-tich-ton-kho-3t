@@ -1,8 +1,10 @@
 # Triển khai lần đầu
 
+> Hướng dẫn chi tiết từng bước (kèm câu lệnh giao cho Claude trên máy): `docs/HUONG_DAN_TRIEN_KHAI.md`.
+
 Chưa có tài nguyên Cloudflare / Google thật. Làm theo thứ tự:
 
-1. **linh-kien-app**: merge + deploy nhánh `claude/api-phan-tich-ton-kho` (thêm `/v1/linh-kien/danh-sach`, `/v1/danh-ba-kho`,
+1. **linh-kien-app**: deploy `master` (≥ v1.421, đã gộp nhánh `claude/api-phan-tich-ton-kho`: thêm `/v1/linh-kien/danh-sach`, `/v1/danh-ba-kho`,
    `/v1/ton-kho` trả thêm `dau_ky/nhap_kho/xuat_kho`). Tạo 1 khoá API đối tác cho "Phân tích tồn kho 3T" (Admin linh-kien-app ›
    Partner API keys) — lưu lại khoá.
 2. **D1**: `npx wrangler d1 create phan-tich-ton-kho-db` → điền `database_id` vào `wrangler.jsonc`, rồi `npm run db:migrate:remote`.

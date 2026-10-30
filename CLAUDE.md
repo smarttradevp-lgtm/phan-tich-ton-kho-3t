@@ -30,6 +30,10 @@ Dev local cần `.dev.vars` (gitignored) với `SESSION_SECRET`, `GOOGLE_CLIENT_
 `http://localhost:8790/api/auth/dev-login[?email=...]` (tạo admin đã duyệt + ký cookie). Route này chỉ bật khi có biến đó VÀ host
 là localhost — KHÔNG bao giờ đặt `DEV_LOGIN` ở `wrangler.jsonc` / secrets thật.
 
+## Triển khai
+
+Chưa deploy thật. Các bước (D1, OAuth, secrets, nối linh-kien-app, chạy song song, chuyển nguồn): `docs/HUONG_DAN_TRIEN_KHAI.md`.
+
 ## Kiến trúc
 
 1 Worker (Hono) phục vụ `/api/*` + frontend tĩnh; `assets.run_worker_first: ["/api/*"]` là bắt buộc (bài học linh-kien-app).
