@@ -95,7 +95,12 @@ export async function docKhaiBao(db: D1Database): Promise<Map<string, KhaiBaoLk 
 }
 
 // Xuat theo thang: thang co du lieu tinh (xuat_thang) dung bang tinh; thang khac cong dong tu so_chi_tiet.
-export async function docXuatThang(db: D1Database, thang: string[], maHang?: string): Promise<{ thang: string; ma_kho: string; ma_hang: string; ten_hang: string | null; sl: number }[]> {
+// chiMa: 1 ma hoac danh sach ma (Ho so linh kien + ma tuong duong) -> 1 bind JSON.
+export type ChiMa = string | string[] | undefined;
+const maJson = (m: ChiMa) => (m == null ? null : JSON.stringify(Array.isArray(m) ? m : [m]));
+const LOC_MA = (n: number) => `(?${n} IS NULL OR ma_hang IN (SELECT value FROM json_each(?${n})))`;
+
+export async function docXuatThang(db: D1Database, thang: string[], maHang?: ChiMa): Promise<{ thang: string; ma_kho: string; ma_hang: string; ten_hang: string | null; sl: number }[]> {
   const tj = JSON.stringify(thang);
   const tinh = (await db.prepare("SELECT DISTINCT thang FROM xuat_thang WHERE thang IN (SELECT value FROM json_each(?))").bind(tj).all<{ thang: string }>()).results.map((r) => r.thang);
   const dong = thang.filter((t) => !tinh.includes(t));
@@ -103,24 +108,24 @@ export async function docXuatThang(db: D1Database, thang: string[], maHang?: str
   const { results } = await db
     .prepare(
       `SELECT thang, ma_kho, ma_hang, MAX(ten_hang) AS ten_hang, SUM(sl) AS sl FROM (
-         SELECT thang, ma_kho, ma_hang, ten_hang, sl_xuat AS sl FROM xuat_thang WHERE thang IN (SELECT value FROM json_each(?1)) AND (?4 IS NULL OR ma_hang = ?4)
+         SELECT thang, ma_kho, ma_hang, ten_hang, sl_xuat AS sl FROM xuat_thang WHERE thang IN (SELECT value FROM json_each(?1)) AND ${LOC_MA(4)}
          UNION ALL
          SELECT substr(ngay_hach_toan, 1, 4) || substr(ngay_hach_toan, 6, 2) AS thang, ma_kho, ma_hang, ten_hang, sl_xuat
          FROM so_chi_tiet
-         WHERE ngay_hach_toan >= ?2 AND sl_xuat <> 0 AND (?4 IS NULL OR ma_hang = ?4)
+         WHERE ngay_hach_toan >= ?2 AND sl_xuat <> 0 AND ${LOC_MA(4)}
            AND substr(ngay_hach_toan, 1, 4) || substr(ngay_hach_toan, 6, 2) IN (SELECT value FROM json_each(?3))
        ) GROUP BY thang, ma_kho, ma_hang`,
     )
-    .bind(tj, tuNgay, JSON.stringify(dong), maHang ?? null)
+    .bind(tj, tuNgay, JSON.stringify(dong), maJson(maHang))
     .all<{ thang: string; ma_kho: string; ma_hang: string; ten_hang: string | null; sl: number }>();
   return results;
 }
 
-async function docTon(db: D1Database, phienId: number, chiMa?: string) {
+async function docTon(db: D1Database, phienId: number, chiMa?: ChiMa) {
   return (
     await db
-      .prepare("SELECT nguon, ma_kho, ma_ktv, ma_hang, ten_hang, xuat_kho, cuoi_ky FROM ton_kho WHERE phien_id = ?1 AND (?2 IS NULL OR ma_hang = ?2)")
-      .bind(phienId, chiMa ?? null)
+      .prepare(`SELECT nguon, ma_kho, ma_ktv, ma_hang, ten_hang, xuat_kho, cuoi_ky FROM ton_kho WHERE phien_id = ?1 AND ${LOC_MA(2)}`)
+      .bind(phienId, maJson(chiMa))
       .all<{ nguon: "kho" | "ktv"; ma_kho: string; ma_ktv: string | null; ma_hang: string; ten_hang: string | null; xuat_kho: number | null; cuoi_ky: number }>()
   ).results;
 }
@@ -133,7 +138,7 @@ function loaiDongTon(kho: Map<string, KhoRow>, r: { nguon: string; ma_kho: strin
 export type CheDoGop = "tat_ca" | "gop_rieng_ktv" | "gop_khong_ktv" | "gop_chung";
 
 // chiMa: chi tinh cho 1 ma (Ho so linh kien) - moi dong tinh doc lap nen ket qua giong het dong do trong bao cao day du.
-export async function baoCaoDapChieu(db: D1Database, cheDo: CheDoGop, chiMa?: string) {
+export async function baoCaoDapChieu(db: D1Database, cheDo: CheDoGop, chiMa?: ChiMa) {
   const ts = await docThamSoDb(db);
   const thangN = thangHienTaiVN(); // chot 29/10/2026: thang N = thang hien tai (luy ke)
   const thang = dayThang(thangN, Math.max(12, ts.so_thang_hien_thi));
@@ -188,7 +193,7 @@ export async function baoCaoDapChieu(db: D1Database, cheDo: CheDoGop, chiMa?: st
 }
 
 // ---------------------------------------------------------------- Leadtime
-export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiKho: "cong_ty" | "ktv" | "tat_ca"; chiMa?: string }) {
+export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiKho: "cong_ty" | "ktv" | "tat_ca"; chiMa?: ChiMa }) {
   const ts = await docThamSoDb(db);
   const [d1, d2, d3] = ts.cua_so_ngay;
   const ngayMoc = await db.prepare("SELECT MAX(ngay_hach_toan) AS d FROM so_chi_tiet").first<string | null>("d");
@@ -207,10 +212,10 @@ export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiK
                     SUM(CASE WHEN ngay_hach_toan > ?2 THEN sl_xuat ELSE 0 END) AS t1,
                     SUM(CASE WHEN ngay_hach_toan > ?3 THEN sl_xuat ELSE 0 END) AS t2,
                     SUM(CASE WHEN ngay_hach_toan > ?4 THEN sl_xuat ELSE 0 END) AS t3
-             FROM so_chi_tiet WHERE ngay_hach_toan > ?4 AND ngay_hach_toan <= ?1 AND (?5 IS NULL OR ma_hang = ?5)
+             FROM so_chi_tiet WHERE ngay_hach_toan > ?4 AND ngay_hach_toan <= ?1 AND ${LOC_MA(5)}
              GROUP BY ma_kho, ma_hang`,
           )
-          .bind(ngayMoc, ngayLui(ngayMoc, d1), ngayLui(ngayMoc, d2), ngayLui(ngayMoc, d3), opts.chiMa ?? null)
+          .bind(ngayMoc, ngayLui(ngayMoc, d1), ngayLui(ngayMoc, d2), ngayLui(ngayMoc, d3), maJson(opts.chiMa))
           .all<{ ma_kho: string; ma_hang: string; ten_hang: string | null; t1: number; t2: number; t3: number }>()
       ).results
     : [];
@@ -269,7 +274,7 @@ export async function baoCaoLeadtime(db: D1Database, opts: { gop: boolean; loaiK
 }
 
 // ---------------------------------------------------------------- Thu hoi DVBH
-export async function baoCaoThuHoi(db: D1Database, chiMa?: string) {
+export async function baoCaoThuHoi(db: D1Database, chiMa?: ChiMa) {
   const ts = await docThamSoDb(db);
   const [kho, khaiBao, phien, phanLoai, maTranRows] = await Promise.all([
     docKho(db),

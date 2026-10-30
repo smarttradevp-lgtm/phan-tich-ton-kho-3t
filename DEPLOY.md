@@ -8,13 +8,17 @@ Chưa có tài nguyên Cloudflare / Google thật. Làm theo thứ tự:
 2. **D1**: `npx wrangler d1 create phan-tich-ton-kho-db` → điền `database_id` vào `wrangler.jsonc`, rồi `npm run db:migrate:remote`.
 3. **Google OAuth Client** (Web): redirect URI `https://phantichtonkho.dichvu3t.workers.dev/api/auth/callback` (sửa
    `GOOGLE_REDIRECT_URI` / `FRONTEND_URL` trong `wrangler.jsonc` nếu đổi tên Worker).
-4. **Service Binding**: bỏ comment khối `services` (`LINHKIEN_SERVICE` → Worker `linhkien`) trong `wrangler.jsonc`.
+4. **Service Binding**: bỏ comment khối `services` (`LINHKIEN_SERVICE` → Worker `linhkien`, `DVBH_SERVICE` → Worker `dvbh`)
+   trong `wrangler.jsonc`.
+4b. **app DVBH** (cho "Hồ sơ linh kiện" › Ca DVBH đang báo thiếu, API `GET /api/partner/thieu-linh-kien` đã có sẵn bên DVBH):
+   Admin DVBH tạo 1 khoá API đối tác cho "Phân tích tồn kho 3T" — lưu lại khoá. Không có khoá thì thẻ đó hiện "chưa kết nối".
 5. **Secrets**:
    ```bash
    npx wrangler secret put GOOGLE_CLIENT_ID
    npx wrangler secret put GOOGLE_CLIENT_SECRET
    npx wrangler secret put SESSION_SECRET      # chuỗi ngẫu nhiên >= 32 ký tự
    npx wrangler secret put LINHKIEN_API_KEY    # khoá ở bước 1
+   npx wrangler secret put DVBH_API_KEY        # khoá ở bước 4b (tuỳ chọn)
    ```
 6. `npm run deploy`.
 7. Đăng nhập bằng `BOOTSTRAP_ADMIN_EMAIL` → **Nhập & đồng bộ**:

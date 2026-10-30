@@ -26,6 +26,7 @@
   /* Bieu do (1 chuoi = primary; luoi/truc mo hon nen 1 bac) */
   --chart-series: #1467e8;
   --chart-series-hover: #0f52bd;
+  --chart-series-2: #eb6834; /* chuoi thu 2 (da qua validator cung primary) */
   --chart-grid: #eef2f6;
   --chart-critical: #dc2626;
 }

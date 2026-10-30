@@ -68,7 +68,14 @@ là localhost — KHÔNG bao giờ đặt `DEV_LOGIN` ở `wrangler.jsonc` / sec
   của app DVBH (repo `dvbh-suite`, nhánh mới nhất `docs/module-sua-chua-bao-hanh-plan` — `main` là bản cũ tháng 7): thẻ số liệu +
   "Nhận định nhanh" + 4 vùng (Tiêu hao / Đánh giá rủi ro / Nguồn hàng / Chứng từ & khai báo). Backend tính lại đắp chiếu / leadtime /
   thu hồi CHỈ cho mã đó (tham số `chiMa` của `baoCaoDapChieu`/`baoCaoLeadtime`/`baoCaoThuHoi` — mỗi dòng tính độc lập nên khớp báo
-  cáo đầy đủ). Mở từ mọi nơi: `useMoLk()(ma, dsMa)` (dsMa = danh sách đang xem → ‹ › / phím ←→); mã đang mở nằm trên URL `?lk=`.
+  cáo đầy đủ; `chiMa` nhận cả danh sách mã → 1 bind JSON, dùng cho mã tương đương). Mở từ mọi nơi: `useMoLk()(ma, dsMa)` (dsMa = danh
+  sách đang xem → ‹ › / phím ←→); mã đang mở nằm trên URL `?lk=`. 6 vùng: Tiêu hao & nhu cầu / Đánh giá rủi ro / Nguồn hàng / Mã tương
+  đương & thay thế / Cung ứng / Chứng từ & khai báo. Dữ liệu hệ thống khác lấy LÚC MỞ qua `GET /bao-cao/lk/:ma/ngoai`
+  (`lib/nguonNgoai.ts`, không lưu D1): linh-kien-app `/v1/linh-kien/chi-tiet` (ảnh, giá NY/KTV, thay thế, combo, từ khoá, công nợ KTV),
+  `/v1/linh-kien/lich-su` (đơn đặt), `/v1/thieu-hang` (ticket), `/v1/ton-kho-kha-dung`; app DVBH `GET /api/partner/thieu-linh-kien?ma_lk=`
+  (ca đang báo thiếu; khoá `DVBH_API_KEY`, binding `DVBH_SERVICE`). Mỗi nguồn trả `chua_cau_hinh` / `loi` / `ok` → thẻ tương ứng hiện
+  "chưa kết nối" / lỗi, không làm hỏng phần còn lại. Test local không cần khoá thật: chạy 1 server giả lập trả JSON mẫu theo tài liệu
+  API rồi trỏ `LINHKIEN_BASE_URL` / `DVBH_BASE_URL` + khoá giả trong `.dev.vars`.
 - **Frontend**: hash routing (`#/cai-dat/lk`, `#/quan-tri/du-lieu`…), menu ở `App.tsx` (`NHOM`). Bảng dùng chung `Bang` (tìm không
   dấu, bấm tiêu đề sắp xếp theo `Cot.sx`, chọn nhiều dòng; mobile → dạng thẻ theo `Cot.the`). **Lọc cột kiểu Excel**: `Cot.loc`
   = `"gt"` (chọn nhiều giá trị, theo `Cot.gt` hoặc `sx`, có số đếm tính trên dữ liệu đã lọc bởi cột khác) | `"so"` (khoảng từ/đến);

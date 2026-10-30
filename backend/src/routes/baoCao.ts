@@ -5,6 +5,7 @@ import { locT5 } from "../lib/tinhToan/dapChieu";
 import { dayThang } from "../lib/tinhToan/chung";
 import { NHOM_THU_HOI } from "../lib/tinhToan/thuHoi";
 import { thangHienTaiVN } from "../lib/vnTime";
+import { nguonDvbh, nguonLinhKienApp } from "../lib/nguonNgoai";
 
 // 4 bao cao - moi vai tro da duyet deu xem duoc. Tinh luc doc tu du lieu goc (khong luu ket qua).
 const baoCao = new Hono<AppEnv>();
@@ -132,6 +133,33 @@ baoCao.get("/lk/:ma", async (c) => {
     ? (await db.prepare("SELECT ma_kho, ten_hang, dau_ky, nhap_kho, xuat_kho, cuoi_ky FROM ton_kho WHERE phien_id = ? AND ma_hang = ? ORDER BY cuoi_ky DESC").bind(phien.id, ma).all<{ ma_kho: string; ten_hang: string | null; dau_ky: number; nhap_kho: number; xuat_kho: number; cuoi_ky: number }>()).results
     : [];
   const tenXuat = xuat.find((x) => x.ten_hang)?.ten_hang ?? null;
+  // Ma tuong duong: cung "Nhóm tương đương" khai bao (so khop khong phan biet hoa/thuong) -> ton / xuat / xep loai tung ma.
+  const nhomTd = kb?.nhom_tuong_duong ? khoaPhanLoai(kb.nhom_tuong_duong) : null;
+  const dsTd = nhomTd
+    ? (await db.prepare("SELECT ma FROM lk_khai_bao WHERE nhom_tuong_duong IS NOT NULL AND ma <> ? AND nhom_tuong_duong <> ''").bind(ma).all<{ ma: string }>()).results
+        .map((x) => x.ma)
+    : [];
+  const kbAll = nhomTd ? await docKhaiBao(db) : null;
+  const maTd = dsTd.filter((m) => kbAll?.get(m)?.nhom_tuong_duong && khoaPhanLoai(kbAll.get(m)!.nhom_tuong_duong!) === nhomTd).slice(0, 30);
+  const [dcTd, lsTon, theoNgay, nhatKy] = await Promise.all([
+    maTd.length ? baoCaoDapChieu(db, "gop_rieng_ktv", maTd).then((x) => x.rows) : Promise.resolve([]),
+    // Dien bien ton qua cac phien ton kho (moi lan import / dong bo): kho cong ty vs kho KTV.
+    db.prepare(
+      `SELECT p.id, p.xong_luc, p.nguon AS nguon_phien,
+              SUM(CASE WHEN COALESCE(k.loai, CASE WHEN t.nguon = 'kho' THEN 'cong_ty' ELSE 'ktv' END) = 'ktv' THEN t.cuoi_ky ELSE 0 END) AS ktv,
+              SUM(CASE WHEN COALESCE(k.loai, CASE WHEN t.nguon = 'kho' THEN 'cong_ty' ELSE 'ktv' END) IN ('cong_ty', 'khac') THEN t.cuoi_ky ELSE 0 END) AS cong_ty
+       FROM ton_kho_phien p LEFT JOIN ton_kho t ON t.phien_id = p.id AND t.ma_hang = ?1 LEFT JOIN kho k ON k.ma = t.ma_kho
+       WHERE p.trang_thai = 'xong' GROUP BY p.id ORDER BY p.id DESC LIMIT 60`,
+    ).bind(ma).all(),
+    // Nhap / xuat theo ngay (so chi tiet, 60 ngay gan nhat co du lieu).
+    db.prepare(
+      `SELECT ngay_hach_toan AS ngay, SUM(sl_nhap) AS nhap, SUM(sl_xuat) AS xuat FROM so_chi_tiet
+       WHERE ma_hang = ?1 AND ngay_hach_toan > date((SELECT MAX(ngay_hach_toan) FROM so_chi_tiet), '-60 day')
+       GROUP BY ngay_hach_toan ORDER BY ngay_hach_toan`,
+    ).bind(ma).all(),
+    // Lich su sua khai bao (nhat_ky.chi_tiet la JSON co "ma":"X" hoac danh sach ma).
+    db.prepare("SELECT luc, nguoi, hanh_dong, chi_tiet FROM nhat_ky WHERE chi_tiet LIKE ? ORDER BY id DESC LIMIT 50").bind(`%"${ma.replace(/[%_"]/g, "")}"%`).all(),
+  ]);
   const heSoThuHoi = kb?.phan_loai
     ? await db.prepare("SELECT he_so_thu_hoi FROM phan_loai_lk WHERE ten = ?").bind(kb.phan_loai).first<number>("he_so_thu_hoi")
     : null;
@@ -151,7 +179,25 @@ baoCao.get("/lk/:ma", async (c) => {
     dap_chieu: { theo_kho: dcKho.rows, gop_rieng_ktv: dcGop.rows, toan_quoc: dcToanQuoc.rows[0] ?? null, t5: locT5(dcGop.rows).map((r) => r.nhom) },
     leadtime: { ngay_moc: ltKho.ngay_moc, cua_so: ltKho.cua_so, theo_kho: ltKho.rows, gop: ltGop.rows[0] ?? null },
     thu_hoi: { ky_tu_ngay: th.ky_tu_ngay, ky_den_ngay: th.ky_den_ngay, so_ky_2_tuan: th.so_ky_2_tuan, rows: th.rows },
+    tuong_duong: {
+      nhom: kb?.nhom_tuong_duong ?? null,
+      rows: maTd.map((m) => {
+        const g = dcTd.find((x) => x.ma === m && x.nhom === "Gộp chung");
+        const k = dcTd.find((x) => x.ma === m && x.nhom === "Kho KTV chung");
+        return { ma: m, ten: kbAll?.get(m)?.ten ?? g?.ten ?? k?.ten ?? m, phan_loai: kbAll?.get(m)?.phan_loai ?? null, ton: g?.ton ?? 0, ton_ktv: k?.ton ?? 0, tb3: g?.tb3 ?? 0, xuat_n: g?.xuat[0] ?? 0, du_tru: g?.du_tru ?? 0, ton_du: g?.ton_du ?? 0, xep_loai: g?.xep_loai ?? null };
+      }),
+    },
+    lich_su_ton: lsTon.results.reverse(),
+    theo_ngay: theoNgay.results,
+    nhat_ky: nhatKy.results,
   });
+});
+
+// Du lieu he thong khac cho Ho so linh kien (goi luc mo, khong luu): linh-kien-app + app DVBH.
+baoCao.get("/lk/:ma/ngoai", async (c) => {
+  const ma = (c.req.param("ma") ?? "").trim();
+  const [lk, dvbh] = await Promise.all([nguonLinhKienApp(c.env, ma), nguonDvbh(c.env, ma)]);
+  return c.json({ linh_kien_app: lk, dvbh });
 });
 
 // Moc du lieu cho thanh trang thai + Tong quan.

@@ -5,6 +5,10 @@ export interface Env {
   LINHKIEN_SERVICE?: Fetcher;
   LINHKIEN_BASE_URL: string;
   LINHKIEN_API_KEY?: string;
+  // App DVBH (ca dang bao thieu linh kien - Hồ sơ linh kiện). Khong co khoa -> hien "chua ket noi".
+  DVBH_SERVICE?: Fetcher;
+  DVBH_BASE_URL: string;
+  DVBH_API_KEY?: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   GOOGLE_REDIRECT_URI: string;

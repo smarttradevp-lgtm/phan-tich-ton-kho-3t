@@ -85,7 +85,7 @@ caiDat.post("/lk/hang-loat", ghi, async (c) => {
        SELECT value, ${truong.map((_, i) => `?${i + 3}`).join(", ")}, ?1, ?2 FROM json_each(?${truong.length + 3}) WHERE true
        ON CONFLICT(ma) DO UPDATE SET ${truong.map((t) => `${t} = excluded.${t}`).join(", ")}, nguoi_cap_nhat = excluded.nguoi_cap_nhat, ngay_cap_nhat = excluded.ngay_cap_nhat`,
     ).bind(email, luc, ...giaTri, JSON.stringify(ma)),
-    lenhNhatKy(db, email, "Sửa hàng loạt khai báo LK", { so_ma: ma.length, gia_tri: Object.fromEntries(truong.map((t, i) => [t, giaTri[i]])) }),
+    lenhNhatKy(db, email, "Sửa hàng loạt khai báo LK", { so_ma: ma.length, ma: ma.slice(0, 500), gia_tri: Object.fromEntries(truong.map((t, i) => [t, giaTri[i]])) }),
   ]);
   return c.json({ ok: true, so_ma: r[0].meta.changes });
 });

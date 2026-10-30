@@ -33,6 +33,38 @@ interface Kq {
   dap_chieu: { theo_kho: DcDong[]; gop_rieng_ktv: DcDong[]; toan_quoc: DcDong | null; t5: string[] };
   leadtime: { ngay_moc: string | null; cua_so: [number, number, number]; theo_kho: LtDong[]; gop: LtDong | null };
   thu_hoi: { ky_tu_ngay: string | null; ky_den_ngay: string | null; so_ky_2_tuan: number; rows: ThDong[] };
+  tuong_duong: { nhom: string | null; rows: { ma: string; ten: string; phan_loai: string | null; ton: number; ton_ktv: number; tb3: number; xuat_n: number; du_tru: number; ton_du: number; xep_loai: string | null }[] };
+  lich_su_ton: { id: number; xong_luc: string; nguon_phien: string; cong_ty: number | null; ktv: number | null }[];
+  theo_ngay: { ngay: string; nhap: number; xuat: number }[];
+  nhat_ky: { luc: string; nguoi: string | null; hanh_dong: string; chi_tiet: string | null }[];
+}
+
+// Du lieu he thong khac (GET /bao-cao/lk/:ma/ngoai) - goi luc mo ho so, khong luu.
+type Nguon<T> = { trang_thai: "chua_cau_hinh" } | { trang_thai: "loi"; loi: string } | ({ trang_thai: "ok" } & T);
+interface LkChiTiet {
+  ten_linh_kien: string | null; phan_loai: string | null; gia_niem_yet: number | null; gia_tri_cong_no: number | null; gia_du_phong: number | null; gia_eu: number | null;
+  bat_tat: number; dac_thu: number; chi_sua_chua: number; cam_ban: number; trang_thai_ma: string | null; ma_chuan: string | null; ghi_chu: string | null; ngay_cap_nhat: string | null;
+  anh: string[];
+  thay_the: { nhom_id: number; ten_nhom: string | null; linh_kien: { ma_linh_kien: string; ten_linh_kien: string | null; bat_tat: number }[] }[];
+  combo: { ma_combo: string; ten_combo: string | null; bat_tat: number; so_luong_trong_combo: number; thanh_phan: { ma_linh_kien: string; so_luong: number }[] }[];
+  tu_khoa: string[];
+  cong_no: { gia_tri_cong_no: number | null; tong_cong_no: number; chi_tiet: { ma_ktv: string; ten_ktv: string | null; khu_vuc_ma: string | null; sl_ton: number; sl_ho_tro_0d: number; cong_no: number }[] } | null;
+}
+interface DonHang { id: string; loai_don: string; loai_de_xuat: string | null; trang_thai_hien_tai: string | null; so_luong_de_xuat: number | null; so_luong_thuc_xuat: number | null; ngay_tao: string; khu_vuc_ma: string | null; ma_xuat_kho: string | null; nguoi_nhan_hang_ten: string | null; case_ids: string | null }
+interface TicketThieu { id: string; dat_don_hang_id: string; so_luong?: number; khu_vuc_ma?: string | null; nguoi_nhan_ten?: string | null; case_ids?: string | null; ly_do: string | null; trang_thai: string | null; trang_thai_don?: string | null; ngay_tao: string; ngay_du_kien_co_hang: string | null; ngay_hang_ve_thuc_te: string | null; kho_du_hang?: boolean }
+interface KhaDung { ma_linh_kien: string; khu_vuc_ma: string; khu_vuc_ten: string | null; ton_goc: number; dang_giu: number; cho_hang: number; kha_dung: number }
+interface CaThieu { id: string; khach_hang: string | null; khu_vuc: string | null; ky_thuat_vien: string | null; tuoi_ton: number | null; nhom_kh: string | null; ly_do_cham: string | null; ngay_yeu_cau_co_hang: string | null; ngay_du_kien_hoan_thanh: string | null; link_crm: string | null; tien_do_hoan_thanh: string | null }
+interface Ngoai {
+  linh_kien_app: Nguon<{ chi_tiet: LkChiTiet | null; don_hang: DonHang[] | null; thieu_hang: TicketThieu[] | null; kha_dung: KhaDung[] | null; loi_mot_phan: string[] }>;
+  dvbh: Nguon<{ total: number; ca: CaThieu[]; luc: string }>;
+}
+const ok = <T,>(n: Nguon<T> | undefined): (T & { trang_thai: "ok" }) | null => (n && n.trang_thai === "ok" ? (n as T & { trang_thai: "ok" }) : null);
+// Ly do "rong" cho the phu thuoc nguon ngoai: dang tai / chua ket noi / loi.
+function lyDoNguon(n: Nguon<unknown> | undefined, dangTai: boolean, ten: string): string | null {
+  if (dangTai) return null;
+  if (!n || n.trang_thai === "chua_cau_hinh") return `Chưa kết nối API ${ten}.`;
+  if (n.trang_thai === "loi") return `Không tải được từ ${ten}: ${n.loi}`;
+  return null;
 }
 
 // ---------------------------------------------------------------- Provider + mo tu bat ky dau
@@ -100,17 +132,32 @@ function HoSoPopup({ ma, ds, doiMa, dong }: { ma: string; ds: string[]; doiMa: (
     };
   }, [dong, doiMa, truoc, sau]);
   const d = q.data;
+  const nq = useQuery({ queryKey: ["lk-ngoai", ma], queryFn: () => api<Ngoai>(`/bao-cao/lk/${encodeURIComponent(ma)}/ngoai`), retry: false, staleTime: 2 * 60 * 1000 });
+  const ct = ok(nq.data?.linh_kien_app)?.chi_tiet ?? null;
+  const [anhLon, setAnhLon] = useState<number | null>(null);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 md:p-[2vh_2vw]" onClick={dong}>
       <div className="flex h-full w-full max-w-[1800px] flex-col overflow-hidden bg-subtle shadow-2xl md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-wrap items-start gap-3 border-b border-line bg-white px-4 py-3 md:px-6">
+          {ct?.anh?.length ? (
+            <button className="shrink-0 overflow-hidden rounded-lg border border-line" onClick={() => setAnhLon(0)} title={`${ct.anh.length} ảnh minh hoạ`}>
+              <img
+                src={ct.anh[0].replace("sz=w1000", "sz=w200")}
+                alt=""
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                className="h-14 w-14 object-cover md:h-16 md:w-16"
+                onError={(e) => ((e.currentTarget.parentElement as HTMLElement).style.display = "none")}
+              />
+            </button>
+          ) : null}
           <div className="min-w-0 flex-1">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Hồ sơ linh kiện</div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-lg font-bold md:text-xl">{ma}</span>
               <span className="min-w-0 text-base font-semibold text-ink md:text-lg">{d?.ten && d.ten !== ma ? d.ten : ""}</span>
             </div>
-            {d && <NhanDau d={d} />}
+            {d && <NhanDau d={d} ct={ct} doiMa={doiMa} />}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {ds.length > 1 && i >= 0 && (
@@ -138,6 +185,20 @@ function HoSoPopup({ ma, ds, doiMa, dong }: { ma: string; ds: string[]; doiMa: (
             </button>
           </div>
         </div>
+        {anhLon != null && ct?.anh?.length ? (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 p-4" onClick={() => setAnhLon(null)}>
+            <img src={ct.anh[anhLon]} alt={ma} referrerPolicy="no-referrer" className="max-h-[85vh] max-w-full rounded-lg bg-white object-contain" />
+            {ct.anh.length > 1 && (
+              <div className="absolute bottom-6 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                {ct.anh.map((u, i) => (
+                  <button key={u} onClick={() => setAnhLon(i)} className={`overflow-hidden rounded border-2 ${i === anhLon ? "border-white" : "border-transparent opacity-70"}`}>
+                    <img src={u.replace("sz=w1000", "sz=w120")} alt="" referrerPolicy="no-referrer" className="h-12 w-12 object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
         <div className="flex-1 overflow-y-auto px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6 md:py-5">
           {q.isLoading ? <TaiDang chu="Đang tính hồ sơ linh kiện…" /> : q.error ? <Loi loi={q.error} /> : d ? <NoiDung d={d} /> : null}
         </div>
@@ -147,7 +208,7 @@ function HoSoPopup({ ma, ds, doiMa, dong }: { ma: string; ds: string[]; doiMa: (
 }
 
 // Nhan tom tat duoi ten: phan loai, nganh, noi SX, rui ro / dap chieu (gop chung - rieng KTV), muc canh bao leadtime.
-function NhanDau({ d }: { d: Kq }) {
+function NhanDau({ d, ct, doiMa }: { d: Kq; ct: LkChiTiet | null; doiMa: (m: string) => void }) {
   const gop = d.dap_chieu.gop_rieng_ktv.find((r) => r.nhom === "Gộp chung");
   const lt = d.leadtime.gop;
   const kb = d.khai_bao;
@@ -161,6 +222,16 @@ function NhanDau({ d }: { d: Kq }) {
       {kb?.noi_san_xuat && <span className="chip">{kb.noi_san_xuat}</span>}
       {d.danh_muc?.nhom_lk && <span className="chip">LK {d.danh_muc.nhom_lk === "b2b" ? "B2B" : "Karofi"}</span>}
       {d.danh_muc && !d.danh_muc.bat_tat && <span className="chip border-amber-300 text-warning">Đang tắt ở danh mục</span>}
+      {ct?.cam_ban ? <span className="chip border-red-300 text-danger">Cấm bán</span> : null}
+      {ct?.dac_thu ? <span className="chip border-amber-300 text-warning">Đặc thù</span> : null}
+      {ct?.chi_sua_chua ? <span className="chip">Chỉ sửa chữa</span> : null}
+      {ct?.trang_thai_ma === "Cho xet duyet" && <span className="chip border-amber-300 text-warning">Mã chờ xét duyệt</span>}
+      {ct?.trang_thai_ma === "Tu choi" && <span className="chip border-red-300 text-danger">Mã bị từ chối</span>}
+      {ct?.trang_thai_ma === "Da doi ma" && ct.ma_chuan && (
+        <button className="chip border-primary text-primary hover:bg-primary-soft" onClick={() => doiMa(ct.ma_chuan!)}>
+          Đã đổi mã → {ct.ma_chuan}
+        </button>
+      )}
     </div>
   );
 }
@@ -194,9 +265,9 @@ function The({ ten, icon, tone, dem, rong, phai, children }: { ten: string; icon
   const c = TONE[tone];
   return (
     <div className={`min-w-0 overflow-hidden rounded-xl border border-line bg-white ${rong ? "opacity-70" : "shadow-sm"}`} style={{ borderLeft: `4px solid ${rong ? "var(--color-border)" : c.vach}` }}>
-      <div className={`flex items-center gap-2 px-3 py-2 ${rong ? "" : "border-b border-line"}`} style={rong ? undefined : { background: `color-mix(in srgb, ${c.nen} 60%, white)` }}>
+      <div className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 ${rong ? "" : "border-b border-line"}`} style={rong ? undefined : { background: `color-mix(in srgb, ${c.nen} 60%, white)` }}>
         <span className="text-sm leading-none">{icon}</span>
-        <span className="whitespace-nowrap text-sm font-semibold" style={{ color: rong ? "var(--color-text-secondary)" : c.chu }}>
+        <span className="min-w-0 truncate text-sm font-semibold" style={{ color: rong ? "var(--color-text-secondary)" : c.chu }}>
           {ten}
         </span>
         {dem !== undefined && (
@@ -204,8 +275,8 @@ function The({ ten, icon, tone, dem, rong, phai, children }: { ten: string; icon
             {dem.toLocaleString("vi-VN")}
           </span>
         )}
-        {rong && <span className="truncate text-xs italic text-ink-soft">· {rong}</span>}
-        {phai && <span className="ml-auto text-xs">{phai}</span>}
+        {rong && <span className="min-w-0 truncate text-xs italic text-ink-soft">· {rong}</span>}
+        {phai && <span className="w-full truncate text-xs sm:ml-auto sm:w-auto">{phai}</span>}
       </div>
       {!rong && <div className="p-2">{children}</div>}
     </div>
@@ -238,6 +309,10 @@ const So = ({ v, d = 0, cls = "" }: { v: number | null | undefined; d?: number; 
 // ---------------------------------------------------------------- Noi dung
 function NoiDung({ d }: { d: Kq }) {
   const mobile = useMobile();
+  const nq = useQuery({ queryKey: ["lk-ngoai", d.ma], queryFn: () => api<Ngoai>(`/bao-cao/lk/${encodeURIComponent(d.ma)}/ngoai`), retry: false, staleTime: 2 * 60 * 1000 });
+  const ng = nq.data;
+  const lkApp = ok(ng?.linh_kien_app);
+  const dvbh = ok(ng?.dvbh);
   const gop = d.dap_chieu.gop_rieng_ktv.find((r) => r.nhom === "Gộp chung") ?? null;
   const ktvChung = d.dap_chieu.gop_rieng_ktv.find((r) => r.nhom === "Kho KTV chung") ?? null;
   const lt = d.leadtime.gop;
@@ -285,6 +360,15 @@ function NoiDung({ d }: { d: Kq }) {
       };
     return { tone: "success" as Tone, icon: "✅", tieuDe: "Bình thường", chu: `Tồn trong ngưỡng dự trữ${soNgayDu != null ? `, còn dư khoảng ${fmtSo(soNgayDu, 1)} ngày sau leadtime` : ""}.${slThuHoi12 > 0 ? ` Lưu ý: ${fmtSo(slThuHoi12, 2)} ở kho KTV thuộc nhóm thu hồi 1–2.` : ""}` };
   })();
+  // Bo sung tu he thong khac: ca DVBH dang cho, ticket thieu hang dang mo, ton con dat duoc.
+  const soTicketMo = (lkApp?.thieu_hang ?? []).filter((t) => TICKET[t.trang_thai ?? ""]?.mo ?? true).length;
+  const khaDung = (lkApp?.kha_dung ?? []).filter((r) => r.ton_goc || r.dang_giu).map((r) => `${r.khu_vuc_ma} ${fmtSo(r.kha_dung, 2) || 0}`);
+  const them = [
+    dvbh?.total ? `${dvbh.total} ca DVBH đang chờ mã này.` : "",
+    soTicketMo ? `${soTicketMo} ticket thiếu hàng đang mở.` : "",
+    khaDung.length ? `Tồn còn đặt được (sau đơn đang giữ): ${khaDung.join(" · ")}.` : "",
+  ].filter(Boolean);
+  if (them.length) nd.chu = `${nd.chu} ${them.join(" ")}`;
   const ndc = TONE[nd.tone];
 
   return (
@@ -292,7 +376,7 @@ function NoiDung({ d }: { d: Kq }) {
       {/* Diem nhan: so lieu chinh + nhan dinh */}
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
-          <OSo nhan="Tồn kho công ty" so={fmtSo(slCongTy, 2) || "0"} tone="primary" mo={!slCongTy} phu={`${tonCongTy.filter((t) => t.cuoi_ky > 0).length} kho có hàng`} />
+          <OSo nhan="Tồn kho công ty" so={fmtSo(slCongTy, 2) || "0"} tone="primary" mo={!slCongTy} phu={`${tonCongTy.filter((t) => t.cuoi_ky > 0).length} kho có hàng${gop && gop.gia_tri_ton > 0 ? ` · ≈ ${soGon(gop.gia_tri_ton)}` : ""}`} />
           <OSo nhan="KTV đang giữ" so={fmtSo(slKtv, 2) || "0"} tone="primary" mo={!slKtv} phu={`${tonKtv.length} kho KTV`} />
           <OSo nhan="TB xuất 3 tháng" so={fmtSo(gop?.tb3 ?? 0)} phu={`tháng N: ${fmtSo(gop?.xuat[0] ?? 0, 2) || 0}`} />
           <OSo nhan="SL dự trữ chuẩn" so={fmtSo(gop?.du_tru ?? 0)} phu={`hệ số ${fmtSo(gop?.he_so ?? kb?.he_so_du_tru ?? d.tham_so.he_so_du_tru_mac_dinh, 2)}`} />
@@ -312,8 +396,12 @@ function NoiDung({ d }: { d: Kq }) {
         </div>
       </div>
 
-      <Vung n={1} ten="Tiêu hao" goiY={`xuất kho ${d.thang.length} tháng, lũy kế tới ${d.moc_so_chi_tiet ?? "—"}`}>
+      <Vung n={1} ten="Tiêu hao & nhu cầu" goiY={`xuất kho ${d.thang.length} tháng, nhập / xuất từng ngày, ca DVBH đang chờ mã này`}>
         <XuatKho d={d} mobile={mobile} />
+        <div className="grid gap-3 xl:grid-cols-2 [&>*]:min-w-0">
+          <NhapXuatNgayThe d={d} mobile={mobile} />
+          <CaDvbhThe n={ng?.dvbh} du={dvbh} dangTai={nq.isLoading} />
+        </div>
       </Vung>
 
       <Vung n={2} ten="Đánh giá rủi ro" goiY="đắp chiếu / dự trữ chuẩn và cảnh báo leadtime">
@@ -323,7 +411,7 @@ function NoiDung({ d }: { d: Kq }) {
         </div>
       </Vung>
 
-      <Vung n={3} ten="Nguồn hàng hiện có" goiY="tồn MISA cuối kỳ" phai={<span className="text-xs text-ink-soft">Tồn cập nhật {d.moc_ton_kho ?? "chưa có"}</span>}>
+      <Vung n={3} ten="Nguồn hàng hiện có" goiY="tồn MISA cuối kỳ, tồn còn đặt được, công nợ KTV" phai={<span className="text-xs text-ink-soft">Tồn cập nhật {d.moc_ton_kho ?? "chưa có"}</span>}>
         <div className="grid gap-3 xl:grid-cols-2 [&>*]:min-w-0">
           <The ten="Tồn theo kho công ty" icon="🏬" tone="primary" dem={tonCongTy.filter((t) => t.cuoi_ky > 0).length} rong={tonCongTy.length ? null : "Không kho công ty nào có mã này."}>
             <BangNho>
@@ -352,23 +440,35 @@ function NoiDung({ d }: { d: Kq }) {
               </tbody>
             </BangNho>
           </The>
+          <KhaDungThe n={ng?.linh_kien_app} rows={lkApp?.kha_dung ?? null} dangTai={nq.isLoading} />
           <KtvGiuThe d={d} />
+          <CongNoThe n={ng?.linh_kien_app} ct={lkApp?.chi_tiet ?? null} dangTai={nq.isLoading} />
+          <div className="xl:col-span-2">
+            <DienBienTonThe d={d} mobile={mobile} />
+          </div>
         </div>
       </Vung>
 
-      <Vung n={4} ten="Chứng từ & khai báo" goiY="sổ chi tiết vật tư, thông số dùng để tính">
-        <SoChiTietThe d={d} />
+      <Vung n={4} ten="Mã tương đương & thay thế" goiY="mã dùng thay được khi thiếu hàng, combo chứa mã">
         <div className="grid gap-3 xl:grid-cols-2 [&>*]:min-w-0">
-          <KhaiBaoThe d={d} />
-          <div className="space-y-3">
-            <The ten="Ca DVBH báo thiếu" icon="🧾" tone="danger" dem={lt?.dvbh_so_ca || undefined} rong={lt?.dvbh_so_ca ? null : "Chưa kết nối API app DVBH."}>
-              <div className="px-1 text-sm">{lt?.dvbh_so_ca} ca đang báo thiếu mã này.</div>
-            </The>
-            <The ten="Hàng đang về (EO Mua hàng)" icon="🚚" tone="primary" dem={lt?.hang_dang_ve || undefined} rong={lt?.hang_dang_ve ? null : "Chưa kết nối API EO Mua hàng."}>
-              <div className="px-1 text-sm">Đang về {fmtSo(lt?.hang_dang_ve, 2)} — đã trừ vào SL cần đặt.</div>
-            </The>
-            <The ten="Đơn đặt / ticket thiếu hàng (linh-kien-app)" icon="🛒" tone="gray" rong="Chưa kết nối API linh-kien-app." />
-          </div>
+          <TuongDuongThe d={d} />
+          <ThayTheThe n={ng?.linh_kien_app} ct={lkApp?.chi_tiet ?? null} dangTai={nq.isLoading} />
+        </div>
+      </Vung>
+
+      <Vung n={5} ten="Cung ứng" goiY="ticket thiếu hàng, đơn đặt mua, hàng đang về">
+        <TicketThe n={ng?.linh_kien_app} rows={lkApp?.thieu_hang ?? null} dangTai={nq.isLoading} />
+        <DonHangThe n={ng?.linh_kien_app} rows={lkApp?.don_hang ?? null} dangTai={nq.isLoading} />
+        <The ten="Hàng đang về (EO Mua hàng)" icon="🚚" tone="primary" dem={lt?.hang_dang_ve || undefined} rong={lt?.hang_dang_ve ? null : "Chưa kết nối API EO Mua hàng."}>
+          <div className="px-1 text-sm">Đang về {fmtSo(lt?.hang_dang_ve, 2)} — đã trừ vào SL cần đặt.</div>
+        </The>
+      </Vung>
+
+      <Vung n={6} ten="Chứng từ & khai báo" goiY="sổ chi tiết vật tư, thông số và giá dùng để tính">
+        <SoChiTietThe d={d} />
+        <div className="grid items-start gap-3 xl:grid-cols-2 [&>*]:min-w-0">
+          <KhaiBaoThe d={d} ct={lkApp?.chi_tiet ?? null} gop={gop} slKtv={slKtv} lt={lt} />
+          <NhatKyThe d={d} />
         </div>
       </Vung>
     </div>
@@ -702,8 +802,9 @@ function SoChiTietThe({ d }: { d: Kq }) {
   );
 }
 
-function KhaiBaoThe({ d }: { d: Kq }) {
+function KhaiBaoThe({ d, ct, gop, slKtv, lt }: { d: Kq; ct: LkChiTiet | null; gop: DcDong | null; slKtv: number; lt: LtDong | null }) {
   const kb = d.khai_bao;
+  const donGia = kb?.gia_nhap ?? 0;
   const ts = d.tham_so;
   const md = (v: number | null | undefined, m: number, dv = "") => (v != null ? `${fmtSo(v, 2)}${dv}` : <span className="text-ink-soft">mặc định {fmtSo(m, 2)}{dv}</span>);
   const gia =
@@ -718,10 +819,17 @@ function KhaiBaoThe({ d }: { d: Kq }) {
     ["Đối tác", kb?.doi_tac ?? "—"],
     ["Nhóm tương đương", kb?.nhom_tuong_duong ?? "—"],
     ["Giá nhập", gia],
+    ["Giá niêm yết / giá KTV", ct ? `${fmtSo(ct.gia_niem_yet) || "—"} / ${fmtSo(ct.gia_tri_cong_no) || "—"}` : <span className="text-ink-soft">cần kết nối linh-kien-app</span>],
+    ["Giá dự phòng / giá EU", ct ? `${fmtSo(ct.gia_du_phong) || "—"} / ${fmtSo(ct.gia_eu) || "—"}` : "—"],
+    ["GT tồn kho công ty", donGia ? fmtSo(gop?.gia_tri_ton ?? 0) : "—"],
+    ["GT tồn kho KTV", donGia ? fmtSo(donGia * slKtv) : "—"],
+    ["GT tồn dư (+ thừa / − thiếu)", donGia && gop ? fmtSo(gop.gia_tri_ton_du) : "—"],
+    ["GT cần đặt (leadtime)", donGia && lt && lt.sl_thieu_can_dat > 0 ? fmtSo(donGia * lt.sl_thieu_can_dat) : "—"],
+    ["Từ khoá tìm kiếm", ct?.tu_khoa?.length ? ct.tu_khoa.join(", ") : "—"],
     ["Danh mục linh-kien-app", d.danh_muc ? `${d.danh_muc.nhom_lk === "b2b" ? "B2B" : "Karofi"}${d.danh_muc.phan_loai_vat_ly ? ` · ${d.danh_muc.phan_loai_vat_ly}` : ""} · đồng bộ ${d.danh_muc.dong_bo_luc}` : <span className="text-ink-soft">Chưa đồng bộ</span>],
   ];
   return (
-    <The ten="Khai báo dùng để tính" icon="⚙️" tone="gray" phai={<a className="text-primary hover:underline" href={`#/cai-dat/lk?bang.q=${encodeURIComponent(d.ma)}`}>Sửa khai báo →</a>}>
+    <The ten="Khai báo, giá & giá trị" icon="⚙️" tone="gray" phai={<a className="text-primary hover:underline" href={`#/cai-dat/lk?bang.q=${encodeURIComponent(d.ma)}`}>Sửa khai báo →</a>}>
       <dl className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
         {dong.map(([k, v]) => (
           <div key={k} className="flex justify-between gap-3 border-b border-line px-1 py-1.5 text-xs last:border-0">
@@ -734,3 +842,417 @@ function KhaiBaoThe({ d }: { d: Kq }) {
   );
 }
 
+
+// ---------------------------------------------------------------- Nhap / xuat theo ngay (so chi tiet)
+function NhapXuatNgayThe({ d, mobile }: { d: Kq; mobile: boolean }) {
+  const rows = d.theo_ngay;
+  const data = rows.map((r) => ({ nhan: `${r.ngay.slice(8, 10)}/${r.ngay.slice(5, 7)}`, gia_tri: r.nhap, gia_tri2: r.xuat }));
+  const tongN = rows.reduce((a, r) => a + r.nhap, 0);
+  const tongX = rows.reduce((a, r) => a + r.xuat, 0);
+  return (
+    <The ten="Nhập / xuất theo ngày" icon="📆" tone="primary" dem={rows.length} rong={rows.length ? null : "Chưa có phát sinh trong sổ chi tiết 60 ngày gần nhất."} phai={<span className="text-ink-soft">60 ngày gần nhất có dữ liệu</span>}>
+      <BieuDoCot data={data} cao={mobile ? 170 : 200} chuoi={["Nhập", "Xuất"]} />
+      <div className="flex flex-wrap gap-x-4 px-1 pt-1 text-xs text-ink-soft">
+        <span>
+          Ngày có phát sinh: <b className="text-ink">{rows.length}</b>
+        </span>
+        <span>
+          Tổng nhập: <b className="text-ink">{fmtSo(tongN, 2) || 0}</b>
+        </span>
+        <span>
+          Tổng xuất: <b className="text-ink">{fmtSo(tongX, 2) || 0}</b>
+        </span>
+      </div>
+    </The>
+  );
+}
+
+// ---------------------------------------------------------------- Ca DVBH dang bao thieu (app DVBH)
+function CaDvbhThe({ n, du, dangTai }: { n: Ngoai["dvbh"] | undefined; du: { total: number; ca: CaThieu[]; luc: string } | null; dangTai: boolean }) {
+  const ca = [...(du?.ca ?? [])].sort((a, b) => (b.tuoi_ton ?? -1) - (a.tuoi_ton ?? -1));
+  const rong = lyDoNguon(n, dangTai, "app DVBH") ?? (du && !ca.length ? "Không có ca nào đang báo thiếu mã này." : null);
+  return (
+    <The ten="Ca DVBH đang báo thiếu" icon="🧾" tone="danger" dem={du ? du.total : undefined} rong={rong} phai={du ? <span className="text-ink-soft">lúc {du.luc?.slice(11, 16)}</span> : undefined}>
+      {dangTai ? (
+        <TaiDang />
+      ) : (
+        <BangNho>
+          <thead>
+            <tr>
+              <th className={TH}>Mã ca</th>
+              <th className={TH}>Khu vực</th>
+              <th className={TH}>KTV</th>
+              <th className={TH}>Khách hàng</th>
+              <th className={`${TH} !text-right`}>Tuổi tồn</th>
+              <th className={TH}>Cần hàng / dự kiến xong</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ca.map((c) => (
+              <tr key={c.id}>
+                <td className="whitespace-nowrap font-mono">{c.link_crm ? <a className="text-primary hover:underline" href={c.link_crm} target="_blank" rel="noreferrer">{c.id}</a> : c.id}</td>
+                <td>{c.khu_vuc ?? "—"}</td>
+                <td className="max-w-[180px] truncate" title={c.ky_thuat_vien ?? ""}>
+                  {c.ky_thuat_vien ?? "—"}
+                </td>
+                <td className="max-w-[160px] truncate" title={c.khach_hang ?? ""}>
+                  {c.khach_hang ?? "—"}
+                  {c.nhom_kh && /vip/i.test(c.nhom_kh) && <span className="ml-1 font-semibold text-warning">{c.nhom_kh}</span>}
+                </td>
+                <td className={`text-right tabular-nums ${(c.tuoi_ton ?? 0) >= 15 ? "font-semibold text-danger" : (c.tuoi_ton ?? 0) >= 7 ? "text-warning" : ""}`}>{c.tuoi_ton ?? "—"} ngày</td>
+                <td className="whitespace-nowrap">{c.ngay_yeu_cau_co_hang ?? "—"} / {c.ngay_du_kien_hoan_thanh ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </BangNho>
+      )}
+    </The>
+  );
+}
+
+// ---------------------------------------------------------------- Ton kha dung theo khu vuc (linh-kien-app)
+function KhaDungThe({ n, rows, dangTai }: { n: Ngoai["linh_kien_app"] | undefined; rows: KhaDung[] | null; dangTai: boolean }) {
+  const ds = (rows ?? []).filter((r) => r.ton_goc || r.dang_giu);
+  const rong = lyDoNguon(n, dangTai, "linh-kien-app") ?? (rows && !ds.length ? "Không khu vực nào có tồn / đơn đang giữ." : rows === null && !dangTai ? "API tồn kho khả dụng chưa trả dữ liệu." : null);
+  return (
+    <The ten="Tồn còn đặt được theo khu vực" icon="🧮" tone="success" dem={rows ? ds.length : undefined} rong={rong} phai={<span className="text-ink-soft">tồn MISA − đơn đang giữ</span>}>
+      {dangTai ? (
+        <TaiDang />
+      ) : (
+        <BangNho>
+          <thead>
+            <tr>
+              <th className={TH}>Khu vực</th>
+              <th className={`${TH} !text-right`}>Tồn gốc</th>
+              <th className={`${TH} !text-right`}>Đơn đang giữ</th>
+              <th className={`${TH} !text-right`}>· chờ hàng</th>
+              <th className={`${TH} !text-right`}>Khả dụng</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ds.map((r) => (
+              <tr key={r.khu_vuc_ma}>
+                <td>
+                  {r.khu_vuc_ten ?? r.khu_vuc_ma} <span className="text-ink-soft">· {r.khu_vuc_ma}</span>
+                </td>
+                <So v={r.ton_goc} d={2} />
+                <So v={r.dang_giu} d={2} />
+                <So v={r.cho_hang} d={2} />
+                <So v={r.kha_dung} d={2} cls={`text-sm font-bold ${r.kha_dung < 0 ? "text-danger" : r.kha_dung > 0 ? "text-success" : ""}`} />
+              </tr>
+            ))}
+          </tbody>
+        </BangNho>
+      )}
+    </The>
+  );
+}
+
+// ---------------------------------------------------------------- Cong no KTV (linh-kien-app)
+function CongNoThe({ n, ct, dangTai }: { n: Ngoai["linh_kien_app"] | undefined; ct: LkChiTiet | null; dangTai: boolean }) {
+  const cn = ct?.cong_no;
+  const rows = [...(cn?.chi_tiet ?? [])].sort((a, b) => b.cong_no - a.cong_no);
+  const rong = lyDoNguon(n, dangTai, "linh-kien-app") ?? (ct && !rows.length ? "Không KTV nào đang giữ công nợ mã này." : null);
+  return (
+    <The ten="Công nợ KTV" icon="💳" tone="warning" dem={ct ? rows.length : undefined} rong={rong} phai={cn ? <span className="text-ink-soft">tổng {fmtSo(cn.tong_cong_no)} · giá KTV {fmtSo(cn.gia_tri_cong_no)}</span> : undefined}>
+      {dangTai ? (
+        <TaiDang />
+      ) : (
+        <BangNho>
+          <thead>
+            <tr>
+              <th className={TH}>KTV</th>
+              <th className={TH}>Khu vực</th>
+              <th className={`${TH} !text-right`}>SL tồn</th>
+              <th className={`${TH} !text-right`}>Hỗ trợ 0đ</th>
+              <th className={`${TH} !text-right`}>Công nợ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.ma_ktv}>
+                <td>
+                  {r.ten_ktv ?? r.ma_ktv} <span className="font-mono text-ink-soft">· {r.ma_ktv}</span>
+                </td>
+                <td>{r.khu_vuc_ma ?? "—"}</td>
+                <So v={r.sl_ton} d={2} />
+                <So v={r.sl_ho_tro_0d || null} d={2} />
+                <So v={r.cong_no} cls="font-semibold" />
+              </tr>
+            ))}
+          </tbody>
+        </BangNho>
+      )}
+    </The>
+  );
+}
+
+// ---------------------------------------------------------------- Dien bien ton qua cac phien ton kho
+function DienBienTonThe({ d, mobile }: { d: Kq; mobile: boolean }) {
+  const rows = d.lich_su_ton;
+  const data = rows.map((r) => ({ nhan: `${r.xong_luc.slice(8, 10)}/${r.xong_luc.slice(5, 7)}`, gia_tri: r.cong_ty ?? 0, gia_tri2: r.ktv ?? 0 }));
+  return (
+    <The
+      ten="Diễn biến tồn qua các lần cập nhật"
+      icon="📉"
+      tone="primary"
+      dem={rows.length}
+      rong={rows.length > 1 ? null : rows.length ? "Mới có 1 lần cập nhật tồn kho — biểu đồ hiện khi có từ 2 lần." : "Chưa có phiên tồn kho."}
+      phai={<span className="text-ink-soft">mỗi lần nhập / đồng bộ tồn kho, tối đa 60 lần gần nhất</span>}
+    >
+      <BieuDoCot data={data} cao={mobile ? 170 : 200} chuoi={["Kho công ty", "Kho KTV"]} />
+    </The>
+  );
+}
+
+// ---------------------------------------------------------------- Ma tuong duong (khai bao app) + thay the / combo (linh-kien-app)
+function TuongDuongThe({ d }: { d: Kq }) {
+  const mo = useMoLk();
+  const rows = [...d.tuong_duong.rows].sort((a, b) => b.ton - a.ton);
+  return (
+    <The
+      ten="Mã tương đương (khai báo)"
+      icon="🔁"
+      tone="success"
+      dem={rows.length}
+      rong={!d.tuong_duong.nhom ? "Mã chưa khai báo “Nhóm tương đương” (Cài đặt › Khai báo linh kiện)." : rows.length ? null : `Nhóm “${d.tuong_duong.nhom}” chưa có mã nào khác.`}
+      phai={d.tuong_duong.nhom ? <span className="text-ink-soft">nhóm “{d.tuong_duong.nhom}”</span> : undefined}
+    >
+      <BangNho>
+        <thead>
+          <tr>
+            <th className={TH}>Mã</th>
+            <th className={TH}>Tên</th>
+            <th className={TH}>Rủi ro</th>
+            <th className={`${TH} !text-right`}>Tồn công ty</th>
+            <th className={`${TH} !text-right`}>Tồn KTV</th>
+            <th className={`${TH} !text-right`}>TB 3T</th>
+            <th className={`${TH} !text-right`}>Tồn dư</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.ma} className="cursor-pointer hover:bg-subtle" onClick={() => mo(r.ma, [d.ma, ...rows.map((x) => x.ma)])} title="Mở hồ sơ mã này">
+              <td className="font-mono text-primary">{r.ma}</td>
+              <td className="max-w-[220px] truncate" title={r.ten}>
+                {r.ten}
+              </td>
+              <td>{r.xep_loai ? <NhanXepLoai v={r.xep_loai} /> : "—"}</td>
+              <So v={r.ton} d={2} cls={r.ton > 0 ? "font-bold text-success" : ""} />
+              <So v={r.ton_ktv} d={2} />
+              <So v={r.tb3} />
+              <So v={r.ton_du} d={2} cls={r.ton_du < 0 ? "text-danger" : ""} />
+            </tr>
+          ))}
+        </tbody>
+      </BangNho>
+    </The>
+  );
+}
+
+function ThayTheThe({ n, ct, dangTai }: { n: Ngoai["linh_kien_app"] | undefined; ct: LkChiTiet | null; dangTai: boolean }) {
+  const mo = useMoLk();
+  const nhom = ct?.thay_the ?? [];
+  const combo = ct?.combo ?? [];
+  const rong = lyDoNguon(n, dangTai, "linh-kien-app") ?? (ct && !nhom.length && !combo.length ? "Không thuộc nhóm thay thế / combo nào." : null);
+  return (
+    <The ten="Nhóm thay thế & combo (linh-kien-app)" icon="🧩" tone="primary" dem={ct ? nhom.length + combo.length : undefined} rong={rong}>
+      {dangTai ? (
+        <TaiDang />
+      ) : (
+        <div className="space-y-3 px-1 text-xs">
+          {nhom.map((g) => (
+            <div key={g.nhom_id}>
+              <div className="mb-1 font-semibold">Nhóm thay thế: {g.ten_nhom ?? `#${g.nhom_id}`}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {g.linh_kien.map((x) => (
+                  <button key={x.ma_linh_kien} className={`chip hover:border-primary ${x.bat_tat ? "" : "opacity-60"}`} onClick={() => mo(x.ma_linh_kien)} title="Mở hồ sơ mã này">
+                    <span className="font-mono text-primary">{x.ma_linh_kien}</span> {x.ten_linh_kien}
+                    {!x.bat_tat && " (đã tắt)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {combo.map((c) => (
+            <div key={c.ma_combo}>
+              <div className="mb-1 font-semibold">
+                Combo {c.ma_combo} — {c.ten_combo} <span className="font-normal text-ink-soft">(mã này × {c.so_luong_trong_combo}{c.bat_tat ? "" : ", combo đã tắt"})</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {c.thanh_phan.map((x) => (
+                  <button key={x.ma_linh_kien} className="chip hover:border-primary" onClick={() => mo(x.ma_linh_kien)}>
+                    <span className="font-mono text-primary">{x.ma_linh_kien}</span> × {x.so_luong}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </The>
+  );
+}
+
+// ---------------------------------------------------------------- Ticket thieu hang + don dat (linh-kien-app)
+const TICKET: Record<string, { t: string; mo: boolean }> = {
+  "Cho kho xu ly": { t: "Chờ kho xử lý", mo: true },
+  "Kho da tiep nhan": { t: "Kho đã tiếp nhận", mo: true },
+  "Kho da cap nhat": { t: "Kho đã cập nhật", mo: true },
+  "Cho mua hang": { t: "Chờ mua hàng", mo: true },
+  "Mua hang da dat": { t: "Mua hàng đã đặt", mo: true },
+  "Kho xac nhan hang da ve": { t: "Hàng đã về", mo: false },
+  "Kho tu choi sai TT": { t: "Kho từ chối (sai TT)", mo: false },
+  "Mua hang tu choi": { t: "Mua hàng từ chối", mo: false },
+  "Da ket thuc": { t: "Đã kết thúc", mo: false },
+  "Da huy bo": { t: "Đã hủy bỏ", mo: false },
+};
+const TT_DON: Record<string, string> = {
+  "Cho TN duyet": "Chờ TN duyệt", "TN da duyet": "Đã duyệt", "Cho hang": "Chờ hàng", "Cho thanh toan": "Chờ thanh toán", "Cho GS duyet": "Chờ GS duyệt",
+  "Cho TBP xac nhan": "Chờ TBP xác nhận", "Cho Tram duyet": "Chờ Trạm duyệt", "TN tu choi": "Từ chối", "Da huy": "Đã hủy",
+};
+const LOAI_DON: Record<string, string> = { mua: "Mua", cong_no: "Công nợ", tra_hang: "Trả hàng" };
+
+function TicketThe({ n, rows, dangTai }: { n: Ngoai["linh_kien_app"] | undefined; rows: TicketThieu[] | null; dangTai: boolean }) {
+  const ds = [...(rows ?? [])].sort((a, b) => Number(!!TICKET[b.trang_thai ?? ""]?.mo) - Number(!!TICKET[a.trang_thai ?? ""]?.mo) || b.ngay_tao.localeCompare(a.ngay_tao));
+  const soMo = ds.filter((t) => TICKET[t.trang_thai ?? ""]?.mo ?? true).length;
+  const rong = lyDoNguon(n, dangTai, "linh-kien-app") ?? (rows && !ds.length ? "Chưa có ticket thiếu hàng nào cho mã này." : null);
+  return (
+    <The ten="Ticket thiếu hàng — kho / mua hàng xử lý" icon="📦" tone="warning" dem={rows ? soMo : undefined} rong={rong} phai={rows ? <span className="text-ink-soft">{ds.length - soMo} đã đóng</span> : undefined}>
+      {dangTai ? (
+        <TaiDang />
+      ) : (
+        <BangNho>
+          <thead>
+            <tr>
+              <th className={TH}>Ticket / đơn</th>
+              <th className={TH}>Trạng thái</th>
+              <th className={TH}>SL · KV · người nhận</th>
+              <th className={TH}>Lý do</th>
+              <th className={TH}>Tạo lúc</th>
+              <th className={TH}>Dự kiến có hàng</th>
+              <th className={TH}>Hàng về</th>
+              <th className={TH}>Ca</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ds.map((t) => {
+              const tt = TICKET[t.trang_thai ?? ""];
+              const moT = tt?.mo ?? true;
+              return (
+                <tr key={t.id} style={moT ? { background: "color-mix(in srgb, var(--color-warning-soft) 70%, white)" } : { opacity: 0.6 }}>
+                  <td className="whitespace-nowrap font-mono">
+                    {t.id}
+                    <div className="text-ink-soft">{t.dat_don_hang_id}</div>
+                  </td>
+                  <td className="whitespace-nowrap">
+                    <span className={`badge ${moT ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{tt?.t ?? t.trang_thai}</span>
+                    {t.kho_du_hang && <div className="mt-0.5 text-[11px] font-semibold text-success">Kho đã đủ hàng</div>}
+                  </td>
+                  <td className="whitespace-nowrap">
+                    {t.so_luong != null ? fmtSo(t.so_luong, 2) : "—"} · {t.khu_vuc_ma ?? "—"} · {t.nguoi_nhan_ten ?? "—"}
+                  </td>
+                  <td className="max-w-[160px] truncate" title={t.ly_do ?? ""}>
+                    {t.ly_do ?? "—"}
+                  </td>
+                  <td className="whitespace-nowrap">{t.ngay_tao?.slice(0, 16)}</td>
+                  <td className={`whitespace-nowrap ${moT && t.ngay_du_kien_co_hang ? "font-semibold" : ""}`}>{t.ngay_du_kien_co_hang ?? "—"}</td>
+                  <td className="whitespace-nowrap">{t.ngay_hang_ve_thuc_te ?? "—"}</td>
+                  <td className="font-mono">{t.case_ids?.split(",").join(" ") || "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </BangNho>
+      )}
+    </The>
+  );
+}
+
+function DonHangThe({ n, rows, dangTai }: { n: Ngoai["linh_kien_app"] | undefined; rows: DonHang[] | null; dangTai: boolean }) {
+  const ds = rows ?? [];
+  const rong = lyDoNguon(n, dangTai, "linh-kien-app") ?? (rows && !ds.length ? "Chưa có đơn đặt hàng nào cho mã này." : null);
+  const tong = ds.reduce((a, o) => a + (o.so_luong_thuc_xuat ?? o.so_luong_de_xuat ?? 0), 0);
+  return (
+    <The ten="Đơn đặt mua linh kiện gần nhất" icon="🛒" tone="primary" dem={rows ? ds.length : undefined} rong={rong} phai={rows ? <span className="text-ink-soft">tổng SL {fmtSo(tong, 2)}</span> : undefined}>
+      {dangTai ? (
+        <TaiDang />
+      ) : (
+        <BangNho>
+          <thead>
+            <tr>
+              <th className={TH}>Đơn</th>
+              <th className={TH}>Loại</th>
+              <th className={TH}>Trạng thái</th>
+              <th className={`${TH} !text-right`}>SL đề xuất / thực xuất</th>
+              <th className={TH}>Người nhận</th>
+              <th className={TH}>KV</th>
+              <th className={TH}>Ngày tạo</th>
+              <th className={TH}>Phiếu xuất</th>
+              <th className={TH}>Ca</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ds.map((o) => (
+              <tr key={o.id}>
+                <td className="whitespace-nowrap font-mono">{o.id}</td>
+                <td>
+                  {LOAI_DON[o.loai_don] ?? o.loai_don}
+                  {o.loai_de_xuat && <div className="text-ink-soft">{o.loai_de_xuat}</div>}
+                </td>
+                <td className="whitespace-nowrap font-semibold">{TT_DON[o.trang_thai_hien_tai ?? ""] ?? o.trang_thai_hien_tai ?? "—"}</td>
+                <td className="whitespace-nowrap text-right tabular-nums">
+                  <b>{fmtSo(o.so_luong_de_xuat, 2)}</b> / {o.so_luong_thuc_xuat == null ? "—" : fmtSo(o.so_luong_thuc_xuat, 2)}
+                </td>
+                <td className="max-w-[160px] truncate">{o.nguoi_nhan_hang_ten ?? "—"}</td>
+                <td>{o.khu_vuc_ma ?? "—"}</td>
+                <td className="whitespace-nowrap">{o.ngay_tao?.slice(0, 16)}</td>
+                <td className="whitespace-nowrap font-mono">{o.ma_xuat_kho ?? "—"}</td>
+                <td className="font-mono">{o.case_ids?.split(",").join(" ") || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </BangNho>
+      )}
+    </The>
+  );
+}
+
+// ---------------------------------------------------------------- Lich su sua khai bao (nhat ky app)
+function NhatKyThe({ d }: { d: Kq }) {
+  return (
+    <The ten="Lịch sử sửa khai báo" icon="🕘" tone="gray" dem={d.nhat_ky.length} rong={d.nhat_ky.length ? null : "Chưa có lần sửa khai báo nào ghi nhật ký (import file khai báo ghi ở Nhập dữ liệu › Lịch sử)."}>
+      <BangNho>
+        <thead>
+          <tr>
+            <th className={TH}>Lúc</th>
+            <th className={TH}>Người</th>
+            <th className={TH}>Thao tác</th>
+            <th className={TH}>Giá trị</th>
+          </tr>
+        </thead>
+        <tbody>
+          {d.nhat_ky.map((n, i) => {
+            let giaTri = "";
+            try {
+              const j = JSON.parse(n.chi_tiet ?? "{}") as { gia_tri?: Record<string, unknown> };
+              giaTri = j.gia_tri ? Object.entries(j.gia_tri).map(([k, v]) => `${k} = ${v ?? "(xoá)"}`).join(" · ") : "";
+            } catch {
+              giaTri = n.chi_tiet ?? "";
+            }
+            return (
+              <tr key={i}>
+                <td className="whitespace-nowrap">{n.luc}</td>
+                <td className="max-w-[160px] truncate">{n.nguoi}</td>
+                <td className="whitespace-nowrap">{n.hanh_dong}</td>
+                <td className="max-w-[260px] truncate text-ink-soft" title={giaTri}>
+                  {giaTri || "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </BangNho>
+    </The>
+  );
+}

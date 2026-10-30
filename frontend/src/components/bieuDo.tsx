@@ -40,16 +40,24 @@ function useRong<T extends HTMLElement>(macDinh: number) {
 }
 
 // Cot doc theo thoi gian. Nhan truc X thua dan khi nhieu cot; nhan gia tri chi o cot cuoi + cot cao nhat.
-export function BieuDoCot({ data, cao = 220, donVi = "" }: { data: { nhan: string; gia_tri: number; chu_thich?: ReactNode }[]; cao?: number; donVi?: string }) {
+// chuoi = [ten chuoi 1, ten chuoi 2] -> 2 cot canh nhau (gia_tri, gia_tri2) + chu giai; 1 chuoi thi khong chu giai.
+export function BieuDoCot({ data, cao = 220, donVi = "", chuoi }: { data: { nhan: string; gia_tri: number; gia_tri2?: number; chu_thich?: ReactNode }[]; cao?: number; donVi?: string; chuoi?: [string, string] }) {
   const [hover, setHover] = useState<number | null>(null);
   const [ref, W] = useRong<HTMLDivElement>(640);
   const PL = 40, PR = 6, PT = 18, PB = 26;
-  const max = Math.max(0, ...data.map((d) => d.gia_tri));
+  const hai = !!chuoi;
+  const max = Math.max(0, ...data.map((d) => Math.max(d.gia_tri, hai ? d.gia_tri2 ?? 0 : 0)));
   const ticks = moc(max);
   const top = ticks[ticks.length - 1] || 1;
   const n = data.length || 1;
   const band = (W - PL - PR) / n;
-  const bw = Math.min(36, band * 0.62);
+  const bw = Math.min(hai ? 40 : 36, band * (hai ? 0.78 : 0.62));
+  const cot = (x: number, w: number, v: number, mau: string) => {
+    const yb = cao - PB;
+    const h = Math.max(0, yb - y(v));
+    const r = Math.min(4, h / 2, w / 2);
+    return h > 0 ? <path d={`M${x},${yb} V${yb - h + r} Q${x},${yb - h} ${x + r},${yb - h} H${x + w - r} Q${x + w},${yb - h} ${x + w},${yb - h + r} V${yb} Z`} fill={mau} /> : null;
+  };
   const y = (v: number) => PT + (cao - PT - PB) * (1 - v / top);
   const iMax = data.reduce((m, d, i) => (d.gia_tri > (data[m]?.gia_tri ?? -1) ? i : m), 0);
   const nhanMoi = Math.ceil(n / Math.max(3, Math.floor((W - PL) / 56)));
@@ -72,13 +80,21 @@ export function BieuDoCot({ data, cao = 220, donVi = "" }: { data: { nhan: strin
           return (
             <g key={d.nhan} onMouseEnter={() => setHover(i)} onClick={() => setHover(hover === i ? null : i)}>
               <rect x={PL + band * i} y={PT} width={band} height={cao - PT - PB} fill="transparent" />
-              {h > 0 && (
-                <path
-                  d={`M${x},${yb} V${yb - h + r} Q${x},${yb - h} ${x + r},${yb - h} H${x + bw - r} Q${x + bw},${yb - h} ${x + bw},${yb - h + r} V${yb} Z`}
-                  fill={hover === i ? "var(--chart-series-hover)" : "var(--chart-series)"}
-                />
+              {hai ? (
+                <>
+                  {cot(x, bw / 2 - 1, d.gia_tri, "var(--chart-series)")}
+                  {cot(x + bw / 2 + 1, bw / 2 - 1, d.gia_tri2 ?? 0, "var(--chart-series-2)")}
+                  {hover === i && <rect x={PL + band * i} y={PT} width={band} height={cao - PT - PB} fill="var(--chart-grid)" opacity={0.5} />}
+                </>
+              ) : (
+                h > 0 && (
+                  <path
+                    d={`M${x},${yb} V${yb - h + r} Q${x},${yb - h} ${x + r},${yb - h} H${x + bw - r} Q${x + bw},${yb - h} ${x + bw},${yb - h + r} V${yb} Z`}
+                    fill={hover === i ? "var(--chart-series-hover)" : "var(--chart-series)"}
+                  />
+                )
               )}
-              {(i === n - 1 || i === iMax) && d.gia_tri > 0 && (
+              {!hai && (i === n - 1 || i === iMax) && d.gia_tri > 0 && (
                 <text x={x + bw / 2} y={yb - h - 5} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--color-text)">
                   {soGon(d.gia_tri)}
                 </text>
@@ -93,15 +109,38 @@ export function BieuDoCot({ data, cao = 220, donVi = "" }: { data: { nhan: strin
         })}
         <line x1={PL} x2={W - PR} y1={cao - PB} y2={cao - PB} stroke="var(--color-border)" strokeWidth={1} />
       </svg>
+      {hai && (
+        <div className="flex gap-4 px-1 text-xs text-ink-soft">
+          {chuoi!.map((t, j) => (
+            <span key={t} className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: j ? "var(--chart-series-2)" : "var(--chart-series)" }} />
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
       {hover != null && data[hover] && (
         <div
           className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs shadow-md"
           style={{ left: `${Math.min(88, Math.max(12, ((PL + band * hover + band / 2) / W) * 100))}%`, top: 0 }}
         >
           <div className="font-semibold">{data[hover].nhan}</div>
-          <div className="tabular-nums">
-            {kieuSo(data[hover].gia_tri)} {donVi}
-          </div>
+          {hai ? (
+            <>
+              <div className="flex items-center gap-1.5 tabular-nums">
+                <span className="h-2 w-2 rounded-sm" style={{ background: "var(--chart-series)" }} />
+                {chuoi![0]}: {kieuSo(data[hover].gia_tri)} {donVi}
+              </div>
+              <div className="flex items-center gap-1.5 tabular-nums">
+                <span className="h-2 w-2 rounded-sm" style={{ background: "var(--chart-series-2)" }} />
+                {chuoi![1]}: {kieuSo(data[hover].gia_tri2 ?? 0)} {donVi}
+              </div>
+            </>
+          ) : (
+            <div className="tabular-nums">
+              {kieuSo(data[hover].gia_tri)} {donVi}
+            </div>
+          )}
           {data[hover].chu_thich && <div className="text-ink-soft">{data[hover].chu_thich}</div>}
         </div>
       )}

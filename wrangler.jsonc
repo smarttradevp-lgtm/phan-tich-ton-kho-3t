@@ -30,13 +30,19 @@
 
   // Goi linh-kien-app qua Service Binding (2 Worker cung tai khoan goi nhau qua *.workers.dev bi chan).
   // Bo comment khi deploy that; local dev dung LINHKIEN_BASE_URL.
-  // "services": [{ "binding": "LINHKIEN_SERVICE", "service": "linhkien", "remote": true }],
+  // DVBH_SERVICE: app DVBH (Worker "dvbh") - ca dang bao thieu linh kien cho Hồ sơ linh kiện.
+  // "services": [
+  //   { "binding": "LINHKIEN_SERVICE", "service": "linhkien", "remote": true },
+  //   { "binding": "DVBH_SERVICE", "service": "dvbh", "remote": true }
+  // ],
 
   "vars": {
     "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",
     "GOOGLE_REDIRECT_URI": "https://phantichtonkho.dichvu3t.workers.dev/api/auth/callback",
     "FRONTEND_URL": "https://phantichtonkho.dichvu3t.workers.dev",
-    "LINHKIEN_BASE_URL": "https://linhkien.dichvu3t.workers.dev"
+    "LINHKIEN_BASE_URL": "https://linhkien.dichvu3t.workers.dev",
+    "DVBH_BASE_URL": "https://dvbh.dichvu3t.workers.dev"
   }
-  // Secrets (wrangler secret put): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET, LINHKIEN_API_KEY
+  // Secrets (wrangler secret put): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET, LINHKIEN_API_KEY,
+  // DVBH_API_KEY (khoa doi tac app DVBH - thieu thi Hồ sơ linh kiện hien "chưa kết nối")
 }
