@@ -107,3 +107,13 @@ Chưa deploy thật. Các bước (D1, OAuth, secrets, nối linh-kien-app, ch�
 - Thời gian lưu giờ VN `YYYY-MM-DD HH:MM:SS`; ngày `YYYY-MM-DD`; tháng `YYYYMM`.
 - Danh sách tham số truyền vào SQL bằng 1 bind JSON (`json_each`) — D1 giới hạn 100 tham số/câu.
 - Comment code tiếng Việt không dấu (như linh-kien-app); giao diện tiếng Việt có dấu.
+
+## Nhận việc từ Trợ lý Mây (tự sửa)
+- Issue gắn nhãn `may:phan-tich` là ĐỀ XUẤT CẢI TIẾN cần phân tích trước: workflow `may-phan-tich` chỉ ĐỌC mã để soạn BRD cho Giám đốc duyệt — không sửa mã ở bước này. Khi duyệt, BRD nằm ở đầu issue; làm đúng BRD và lưu nó vào `docs/yeu-cau/MAY-xxxxx.md`.
+- Issue gắn nhãn `may:tu-sua` là việc do Trợ lý Mây chuyển sang, mã `MAY-xxxxx` ở tiêu đề. Sửa ĐÚNG phạm vi mô tả.
+- Kiểm tra bắt buộc trước khi mở PR: `npm run build` (eslint chạy trước; đỏ = dừng). Flutter: `flutter analyze && flutter build web`.
+- Nhánh `may/may-xxxxx`, PR vào `main`, tiêu đề bắt đầu bằng mã, mô tả tiếng Việt (nguyên nhân · cách sửa · cách thử), ghi `Closes #<issue>`.
+- KHÔNG BAO GIỜ: sửa `firestore.rules`/`storage.rules`/hàm `hrLink`/secrets; chạy `firebase deploy` trần; đổi tính năng ngoài issue; xoá dữ liệu.
+- Không chắc / cần người quyết: bình luận `MÂY: CẦN NGƯỜI` + lý do rồi dừng.
+- Deploy do workflow `may-deploy` làm sau khi được duyệt — KHÔNG tự deploy trong lúc sửa.
+- Khi làm việc TRONG PHIÊN NÀY (không phải workflow) mà bản sửa giải quyết một issue Mây đang mở (`gh issue list --label may:cho-duyet,may:tu-sua`): ghi mã `MAY-xxxxx` vào dòng đầu commit → Trợ lý Mây tự báo hoàn thành, không cần Giám đốc bấm tay.
